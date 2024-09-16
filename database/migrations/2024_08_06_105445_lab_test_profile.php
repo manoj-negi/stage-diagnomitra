@@ -17,11 +17,13 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('labs_tests_id');
             $table->unsignedBigInteger('lab_profile_id');
+            $table->unsignedBigInteger('lab_id');
             $table->timestamps();
 
             // Add foreign key constraints
             $table->foreign('labs_tests_id')->references('id')->on('labs_tests')->onDelete('cascade');
             $table->foreign('lab_profile_id')->references('id')->on('lab_profile')->onDelete('cascade');
+            $table->foreign('lab_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

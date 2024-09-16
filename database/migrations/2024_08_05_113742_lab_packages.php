@@ -24,7 +24,7 @@ class Labpackages extends Migration
             $table->timestamp('updated_at')->default(DB::raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
             // Add foreign key constraints
-            $table->foreign('lab_id')->references('id')->on('labs')->onDelete('cascade');
+            $table->foreign('lab_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('lab_profile_id')->references('id')->on('lab_profile')->onDelete('cascade');
         });
     }

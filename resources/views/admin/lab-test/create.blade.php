@@ -17,7 +17,7 @@
                   <div class="row">
                      <div class="col-md-6 mb-3">
                         <label class="form-label" for="test_name">Test Name<span class="text-danger">*</span></label>
-                        <select name="test_name" id="test_name" style="width: 100%;"></select>
+                        <select name="test_name" id="test_name" style="width: 100%;"  value="{{ old('test_name', $data->test_name ?? '') }}"></select>
                         @error('test_name')
                            <div class="validationclass text-danger pt-2">{{ $message }}</div>
                         @enderror
@@ -46,7 +46,9 @@
                            <div class="validationclass text-danger pt-2">{{ $message }}</div>
                         @enderror
                      </div>
-                     @endif
+                     @else <!-- Lab User -->
+    <input type="hidden" name="lab_id" value="{{ Auth::user()->id }}">
+@endif
 
                      <div class="col-md-12 mb-3">
                         <label class="form-label" for="description">Description</label>
@@ -120,6 +122,8 @@ $(document).ready(function() {
                 return null;
             }
 
+            console.log("gajdhkjashdkjashdkj term =========",term);
+
             return {
                 id: term,
                 text: term,
@@ -130,26 +134,42 @@ $(document).ready(function() {
         templateResult: formatItem,
         templateSelection: formatItemSelection
     }).on('select2:select', function(e) {
+      console.log("xxsafdsfewds");
         var data = e.params.data;
-        if (data.new) {
+
+        // Debugging: Log the data object to the console
+         var name = data.text; 
+      
+         console.log('Selected data:', data);
+         console.log('Sewqeqweqlected data:', name);
+
+      //   if (data.new) {
+      //       console.log('New test name detected:', data.text);
+
             $.ajax({
                 url: "{{ route('lab-test.store') }}",
                 type: 'POST',
                 data: {
                     _token: "{{ csrf_token() }}",
-                    test_name: data.text,
+                  //   test_name: name, 
+                  test_name: $('#test_name').val(),
                     amount: $('#amount').val(),
                     lab_id: $('#lab_id').val()
                 },
                 success: function(response) {
-                    $('#test_name').append(new Option(response.test_name, response.id, true, true)).trigger('change');
+                    console.log('Server response:', response);
+                    $('#test_name').val(response.test_name).trigger('change'); // Ensure the test_name is set correctly
                 },
                 error: function(xhr) {
                     console.error('Error creating new test:', xhr.responseText);
                 }
             });
-        }
+
     });
 });
+ // Preselect the test name if editing
+ @if(isset($data->test_name))
+    $('#test_name').append(new Option("{{ $data->test_name }}", "{{ $data->test_name }}", true, true)).trigger('change');
+    @endif
 </script>
 @endsection

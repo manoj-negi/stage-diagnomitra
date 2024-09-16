@@ -8,6 +8,7 @@ use App\Models\Package;
 use App\Models\PackageProfile;
 use App\Models\LabSelectedPackages;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 use Illuminate\Support\Facades\Auth;
 
@@ -20,49 +21,67 @@ class PackageController extends Controller
      */
     public function index(Request $request)
     {
-        $data["title"] = "Lab Package";
-        $data["page_name"] = "List";
-    
-        // Build the query for packages with join to lab_profiles and labs
-        $dataArray = Package::query()
-            ->join('lab_profile', 'labs_packages.lab_profile_id', '=', 'lab_profile.id')
-            ->join('labs', 'lab_profile.lab_id', '=', 'labs.id')
-            ->select(
-                'labs_packages.id',
-                'labs_packages.package_name',
-                'labs_packages.amount as price',
-                'labs.name as lab_name',
-                'lab_profile.profile_name as lab_profile_name'
-            )
-            ->orderBy('labs_packages.id', 'desc');
-    
-        // Apply role-based filtering
-        // if (Auth::user()->roles->contains(4)) {
-        //     $dataArray->where('labs_packages.lab_id', Auth::user()->id);
-        // } elseif (Auth::user()->roles->contains(1)) {
-        //     $dataArray->where('labs_packages.lab_id', '!=', '1');
-        // }
-    
-        // Apply search filter if provided
-        if (!empty($request->search)) {
-            $dataArray->where('labs_packages.package_name', 'LIKE', '%' . $request->search . '%');
+        $data['title'] = 'Lab Package';
+        $data['page_name'] = 'List';
+
+        // Get the authenticated user and their role
+        $user = Auth::user();
+        $roleId = $user->roles->first()->id; // Assuming each user has only one role
+
+        // Fetch all labs with role ID 4 (Lab users)
+        $data['labs'] = User::whereHas('roles', function($q) {
+            $q->where('id', '=', 4); // Assuming role ID 4 corresponds to Lab users
+        })->get();
+
+        // Start building the query for packages
+        $dataPackages = Package::query()
+            ->join('users', 'labs_packages.lab_id', '=', 'users.id')
+            ->select('labs_packages.*', 'users.name as lab_name');
+
+        // Apply filtering based on the user's role
+        if ($roleId == 1) {
+            // Admin: show all packages
+            if (!empty($request->search)) {
+                $dataPackages->where('labs_packages.package_name', 'LIKE', '%' . $request->search . '%');
+            }
+        } else {
+            // Lab user: only show packages for the logged-in user's lab
+            $labId = $user->id; // Assuming lab ID is the same as user ID
+            $dataPackages->where('labs_packages.lab_id', $labId);
+
+            if (!empty($request->search)) {
+                $dataPackages->where('labs_packages.package_name', 'LIKE', '%' . $request->search . '%');
+            }
         }
-    
-        // Paginate the results and preserve the query string
-        $data['data'] = $dataArray->paginate($request->pagination ?? 20)->withQueryString();
-       
-        return view("admin.package.index", $data);
+
+        // Get the paginated results
+        $data['data'] = $dataPackages->orderBy('labs_packages.id', 'desc')
+            ->paginate($request->input('pagination', 20))
+            ->withQueryString();
+
+        return view('admin.package.index', $data);
     }
-    
-    
+
     public function indexDiagno(Request $request)
     {
-        $data["title"] = "Digno Package";
-        $data["page_name"] = "List";
-        $dataArray = Package::where('type','package')->where('lab_id',1);
-        $data['data'] = $dataArray->orderBy('id','desc')->paginate(20);
-        return view("admin.package.index", $data);
+        $data['title'] = 'Diagnomitra Package';
+        $data['page_name'] = 'List';
+
+        // Fetch only packages for Diagnomitra lab (lab_id = 585)
+        $dataPackages = Package::where('lab_id', 585);
+
+        if (!empty($request->search)) {
+            $dataPackages->where('package_name', 'LIKE', '%' . $request->search . '%');
+        }
+
+        // Get the paginated results
+        $data['data'] = $dataPackages->orderBy('id', 'desc')
+            ->paginate($request->input('pagination', 20))
+            ->withQueryString();
+
+        return view('admin.package.index', $data);
     }
+
 
     public function packageProfile(Request $request)
     {
@@ -83,17 +102,22 @@ class PackageController extends Controller
 
     public function getPackageProfile(Request $request)
     {
-        $LabId = $request->lab_id;
         $keyWord = $request->q;
-        $profileSelectedData = '';
-        $lab  = Package::where('type','profile')->where('package_name','like', '%' . $keyWord . '%');
-        if(Auth::user()->roles->contains(4)){
-            $lab->where('lab_id',Auth::user()->id);
+        $labId = $request->lab_id;
+    
+        // Initialize query builder for LabProfile model
+        $query = LabProfile::where('profile_name', 'like', '%' . $keyWord . '%');
+    
+        // Filter by lab_id if the user has role 4
+        if (Auth::user()->roles->contains(4)) {
+            $query->where('lab_id', Auth::user()->id);
         }
-
+    
+        // Paginate the results
         $page = $request->input('page', 1);
-        $items  = $lab->paginate(10, ['*'], 'page', $page);
-
+        $items = $query->paginate(10, ['*'], 'page', $page);
+    
+        // Prepare response
         $response = [
             'items' => $items->items(),
             'total_count' => $items->total()
@@ -101,19 +125,71 @@ class PackageController extends Controller
     
         return response()->json($response);
     }
+    
 
     public function create(Request $request)
     {
         $data["page_name"] = "Create";
         $data["title"] = "Add Lab Package";
-        $data["hospitals"] = User::whereHas("roles", function ($query) {
-            $query->where("id", 4);
-        })->get();
-        $data["tests"] = Package::orderBy('id','desc')->where('type','profile')->where('lab_id',Auth::user()->id)->take(10)->get();
-        $data["packageName"] = Package::where('type','package')->where('lab_id',1)->where('parent_id',null)->orderBy('id','desc')->get();
-        $data['subprofile'] = Package::where('type','profile')->where('lab_id',1)->get();
+    
+        // Fetch Diagnomitra Lab ID
+        $diagnomitraLabId = User::where('name', 'Diagnomitra')
+            ->whereHas('roles', function ($query) {
+                $query->where('id', 4);
+            })
+            ->pluck('id')
+            ->first();
+        
+        // Check if the user has the admin role
+        if (Auth::user()->roles->contains(1)) {
+            // Fetch all labs for admin role
+            $data['labs'] = User::whereHas('roles', function($q) {
+                $q->where('id', '=', 4);  // Lab role
+            })->get();
+        } else {
+            // For non-admin users, fetch only the current user's lab
+            $data['labs'] = User::where('id', Auth::user()->id)->get();
+        }
+    
+        // Retrieve other necessary data
+        $data["packageName"] = Package::where('lab_id', $diagnomitraLabId)->get();
+        $data['subprofile'] = LabProfile::where('lab_id', Auth::user()->id)->take(10)->get();
+    
+        // Retrieve all packages for parent selection
+        $data['parentPackages'] = Package::where('lab_id', Auth::user()->id)
+                                         ->whereNull('parent_id')
+                                         ->orderBy('package_name')
+                                         ->get();
+    
         return view("admin.package.create", $data);
     }
+    
+
+
+
+   
+    public function getLabProfiles(Request $request)
+{
+    $search = $request->get('q');
+
+    // Query the lab_profile table
+    $profiles = LabProfile::where('profile_name', 'LIKE', "%$search%")
+                ->paginate(10);
+
+    // Return data in the format Select2 expects
+    $results = [];
+    foreach ($profiles as $profile) {
+        $results[] = [
+            'id' => $profile->id,
+            'name' => $profile->name,
+        ];
+    }
+
+    return response()->json([
+        'items' => $results,
+        'total_count' => $profiles->total(),
+    ]);
+}
 
     public function deleted($id, $profile_id)
     {
@@ -161,64 +237,60 @@ class PackageController extends Controller
      */
     public function store(Request $request)
     {
+        // Define validation rules
         $validationRules = [
-            'package_name' => 'required',
+            'package_name' => 'required|unique:labs_packages,package_name,' . $request->id,
+            'lab_id' => 'required|exists:users,id', // Ensure lab_id is required and must exist in the users table
+            'parent_id' => 'nullable|exists:labs_packages,id', // Ensure parent_id is optional and must exist in the packages table
+            'amount' => 'required|numeric',
+            
         ];
     
-        $CheckUser = Package::where('parent_id',$request->parent_id)->where('lab_id',Auth::id())->first();
-        $CheckEdit = Package::where('id',$request->id)->first();
-
-        if(is_null($CheckEdit))
-        if (empty($request->parent_id) || $CheckUser) {
-            $validationRules['package_name'] = 'required|unique:labs_packages,package_name';
-        }
+        // Validate request data
         $validatedData = $request->validate($validationRules);
     
-        // $customMessages = [
-        //     'title.required' => 'The title field is required.',
-        //     'title.unique' => 'The title must be unique when parent_id is provided.',
-        // ];
+        // Check if it's a new record or an update
+        $data = Package::updateOrCreate([
+            "id" => $request->id, // If editing an existing package
+        ], [
+            "package_name" => $request->package_name,
+            "lab_id" => $request->lab_id,
+            "amount" => $request->amount,
+            'TAT' => $request->TAT,
+            'no_of_parameters' => $request->no_of_parameters,
+            "is_frequently_booking" => $request->is_frequently_booking ?? 0,
+            "is_lifestyle" => $request->is_lifestyle ?? 0,
+            "parent_id" => $request->parent_id,
+        ]);
     
-        // $request->validate($validationRules, $customMessages);
-        $labID = Auth::id();
-        if(is_null($CheckEdit)){
-        if (!is_null($request->parent_id)) {
-            $profileCount = Package::where('parent_id', $request->parent_id)
-                                    ->where('type', 'package')->where('lab_id',Auth::id())
-                                    ->count();
-            if ($profileCount >= 3) {
-                return redirect()->back()->with(['msg' => 'You can only create 3 Sub profiles with this Profile.']);
-            }
-        }
-    }
-
-        $data = Package::updateOrCreate( [
-                "id" => $request->id,
-            ], [
-                "package_name" => $request->package_name,
-                "parent_id" => $request->parent_id,
-                "lab_id" => $labID,
-                "amount" => $request->amount,
-                "is_frequently_booking" => $request->is_frequently_booking ?? 0,
-                "is_lifestyle" => $request->is_lifestyle ?? 0,
-                "type" => 'package',
-            ]
-        );
-        if (isset($request->image)) {
+        // Handle image upload if provided
+        if ($request->hasFile('image')) {
             $path = public_path("/uploads/package/");
-            $uploadImg = $this->uploadDocuments($request->image, $path);
+            $uploadImg = $this->uploadDocuments($request->file('image'), $path);
             $data->image = $uploadImg;
             $data->save();
         }
-
-        if (!empty($request->profile_id)) {
-            $data->getChilds()->sync($request->profile_id);
+    
+        // Manage related records in labs_profile_packages table
+        if (isset($request->profile_id)) {
+            \App\Models\LabsProfilePackage::where('package_id', $data->id)->delete(); // Clear previous entries
+    
+            foreach ($request->profile_id as $profileId) {
+                \App\Models\LabsProfilePackage::updateOrCreate([
+                    'lab_profile_id' => $profileId,
+                    'package_id' => $data->id,
+                ]);
+            }
         }
-
+    
+        // Determine success message
         $msg = isset($request->id) && !empty($request->id) ? "Updated Successfully." : "Created Successfully";
-
+    
         return redirect()->route("package.index")->with("data_created", $msg);
     }
+    
+    
+    
 
     /**
      * Display the specified resource.
@@ -232,7 +304,6 @@ class PackageController extends Controller
         $data["title"] = " Package Details";
         $data["data"] = LabProfile::where("id", $id)->first();
         $data["data"] = Package::where("id", $id)->first();
-
         return view("admin.package.show", $data);
     }
 
@@ -243,38 +314,87 @@ class PackageController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
-    {
-        $packageData["title"] = "Edit Package";
-        $packageData["page_name"] = "Edit";
-        $packageData["data"] = Package::find($id);
-        $packageData["packageName"] = Package::where('type','package')->where('lab_id',1)->where('parent_id',null)->orderBy('id','desc')->get();
-        $packageData["hospitals"] = User::whereHas("roles", function ($query) {
-            $query->where("id", 4);
+{
+    // Initialize the data array
+    $data = [
+        "page_name" => "Edit",
+        "title" => "Edit Lab Package",
+        // Retrieve the package data or fail with a 404 if not found
+        'data' => Package::findOrFail($id),
+        // Retrieve the selected profiles from labs_profile_packages based on the package ID
+        'selectedProfile' => DB::table('labs_profile_packages')
+            ->where('package_id', $id)
+            ->join('lab_profile', 'labs_profile_packages.lab_profile_id', '=', 'lab_profile.id')
+            ->select('lab_profile.profile_name', 'lab_profile.id')
+            ->get(),
+    ];
+
+    // Check user role and retrieve data accordingly
+    
+        // For admins, retrieve all packages, profiles, and labs
+        $data['packageName'] = Package::whereNull('parent_id')->orderBy('package_name')->get();
+        $data['profiles'] = LabProfile::all(); // Retrieve all profiles for admin
+        $data['labs'] = User::whereHas('roles', function($query) {
+            $query->where('role_id', 4); // Labs
         })->get();
+ 
 
-        $hospitalIds = $packageData["data"]->pluck("lab_id")->toArray();
-        $profiles = Package::where('type', 'profile')->where('lab_id', Auth::user()->id);
+    // Return the view with the prepared data
+    return view("admin.package.create", $data);
+}
 
-        // if(isset($packageData['data']->getChilds)){
-        //     $profiles->whereIn('id', $packageData['data']->getChilds->pluck('id')->toArray());
-        // }
+    
 
-        $packageData["profiles"] =  $profiles->orderBy('id','desc')->get();
-        $packageData["profile_test"] = LabTest::where("hospital_id", Auth::user()->id)->get();
-        return view("admin.package.create", $packageData);
-    }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+    // Update the specified resource in storage.
     public function update(Request $request, $id)
     {
-        //
+        // Define validation rules
+        $validationRules = [
+            'package_name' => 'required',
+            'lab_id' => 'required|exists:users,id',
+            'parent_id' => 'nullable|exists:packages,id',
+        ];
+
+        // Validate request data
+        $validatedData = $request->validate($validationRules);
+
+        // Update package record
+        $data = Package::findOrFail($id);
+        $data->update([
+            'package_name' => $request->package_name,
+            'lab_id' => $request->lab_id,
+            'amount' => $request->amount,
+            'TAT' => $request->TAT,
+            'no_of_parameters' => $request->no_of_parameters,
+            'is_frequently_booking' => $request->is_frequently_booking ?? 0,
+            'is_lifestyle' => $request->is_lifestyle ?? 0,
+            'parent_id' => $request->parent_id,
+        ]);
+
+        // Handle image upload if provided
+        if (isset($request->image)) {
+            $path = public_path("/uploads/package/");
+            $uploadImg = $this->uploadDocuments($request->image, $path);
+            $data->image = $uploadImg;
+            $data->save();
+        }
+
+        // Update lab profile packages
+        if (isset($request->profile_id)) {
+            \App\Models\LabsProfilePackage::where('package_id', $id)->delete();
+            foreach ($request->profile_id as $profileId) {
+                \App\Models\LabsProfilePackage::updateOrCreate([
+                    'lab_profile_id' => $profileId,
+                    'package_id' => $id,
+                ]);
+            }
+        }
+
+        return redirect()->route('package.index')->with('data_updated', 'Updated Successfully.');
     }
+
+    
 
     /**
      * Remove the specified resource from storage.
@@ -289,4 +409,15 @@ class PackageController extends Controller
             ->route("package.index")
             ->with("msg", "Package Deleted Successfully");
     }
+    public function listWithParentPackage()
+{
+    $data["title"] = "Packages with Parent Package";
+    $data["page_name"] = "List";
+
+    // Fetch packages with parentPackage relationship
+    $results = Package::with('parentPackage')->get();
+
+    return view("admin.package.with_parent_package", ['results' => $results, 'data' => $data]);
+}
+
 }

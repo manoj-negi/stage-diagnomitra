@@ -3,220 +3,334 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Hospital;
-use App\Models\HospitalCategory; 
-use File;
-use Datatables;
-use App\Models\Role;
-use App\Models\Doctor_hospital; 
-use App\Models\User;
-use Auth;
-use App\Models\State;
-use App\Models\hospitalsReport;
-use App\Models\City;
 use App\Models\LabTest;
-use App\Models\HospitalDoctor;
-use App\Models\PatientReport;
-use App\Models\Appointment;
-use Illuminate\Support\Facades\Hash;
+use App\Models\LabTestName;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Auth;
 
 class LabTestController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index(Request $request)
-    {
-        $data['title'] = "Lab Test";
-        $data['page_name'] = "List";
-        $data['labs'] = User::whereHas('roles', function($q){ $q->where('id','=', 4); })->get();
+{
+    $data['title'] = "Lab Test";
+    $data['page_name'] = "List";
+    
+    // Get list of labs with role id 4
+    $data['labs'] = User::whereHas('roles', function ($q) {
+        $q->where('id', 4);
+    })->get();
+    
+    // Build the query with joins and filters
+    $dataTest = LabTestName::query()
+        ->join('labs_tests', 'lab_test_name.test_id', '=', 'labs_tests.id')
+        ->join('users', 'lab_test_name.lab_id', '=', 'users.id')
+        ->select('lab_test_name.*', 'labs_tests.test_name', 'users.name as lab_name');
 
-        $dataTest = LabTest::query()
-            ->join('labs', 'labs_tests.lab_id', '=', 'labs.id')
-            ->select('labs_tests.*', 'labs.name as lab_name');
-
-        if(!empty($request->search)){
-            $dataTest->where('labs_tests.test_name', 'LIKE', '%' . $request->search . '%');
-        }
-
-        if(!empty($request->lab)){
-            $dataTest->where('labs_tests.lab_id', $request->lab);
-        }
-
-        if(Auth::user()->roles->contains(4)){
-            $dataTest->where('labs_tests.lab_id', Auth::user()->id);
-        }
-
-        $data['data'] = $dataTest->orderBy('labs_tests.id', 'DESC')
-            ->paginate($request->pagination ?? 10)
-            ->withQueryString();
-
-        return view('admin.lab-test.index', $data);
+    // Filter by search
+    if (!empty($request->search)) {
+        $dataTest->where('labs_tests.test_name', 'LIKE', '%' . $request->search . '%');
     }
 
+    // Filter by lab
+    if (!empty($request->lab)) {
+        $dataTest->where('lab_test_name.lab_id', $request->lab);
+    }
+
+    // Apply filter for labs with role_id = 4
+    if (Auth::user()->roles->contains(4)) {
+        $dataTest->where('lab_test_name.lab_id', Auth::user()->id);
+    }
+
+    // Get paginated data
+    $data['data'] = $dataTest->orderBy('lab_test_name.id', 'DESC')
+        ->paginate($request->pagination ?? 10)
+        ->withQueryString();
+
+    // Pass logged-in user's lab_id to the view
+    $data['lab_id'] = Auth::user()->id;
+
+    return view('admin.lab-test.index', $data);
+}
     public function indexDiagno(Request $request)
     {
         $data['title'] = "Lab Test";
         $data['page_name'] = "List";
-        $dataTest = LabTest::where('lab_id', 1);
-
-        if(!empty($request->search)){
-            $dataTest->where('test_name', 'LIKE', '%' . $request->search . '%');
+    
+        // Start building the query with joins and filters
+        $dataTest = LabTestName::query()
+            ->join('labs_tests', 'lab_test_name.test_id', '=', 'labs_tests.id')
+            ->join('users', 'lab_test_name.lab_id', '=', 'users.id')
+            ->select('lab_test_name.*', 'labs_tests.test_name', 'users.name as lab_name')
+            ->where('lab_test_name.lab_id', 585); // Filter for lab_id 585
+    
+        // Apply search filter if a search query is provided
+        if (!empty($request->search)) {
+            $dataTest->where('labs_tests.test_name', 'LIKE', '%' . $request->search . '%');
         }
-        if(!empty($request->lab)){
-            $dataTest->where('lab_id', $request->lab);
-        }
-
-        $data['data'] = $dataTest->orderBy('id', 'DESC')->paginate($request->pagination ?? 10)->withQueryString();
+    
+        // Fetch the filtered and paginated results
+        $data['data'] = $dataTest->orderBy('lab_test_name.id', 'DESC')
+            ->paginate($request->pagination ?? 10)
+            ->withQueryString();
+    
         return view('admin.lab-test.index', $data);
     }
-
-    public function labtestUpdate(Request $request, $id)
-    {
-        $data = LabTest::find($id);
-        $data->update(['admin_status' => $request->admin_status]);
-        return redirect()->back()->with('msg', 'Status Approved');
-    }
-
-    public function hospitalUpdate(Request $request, $id)
-    {
-        $data = User::where('id', $id)->first();
-        $data->is_approved = $request->is_approved;
-        $data->save();
-
-        return redirect()->back()->with('msg', 'Status Updated Successfully');
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    
     public function create()
     {
         $result['title'] = "Lab";
         $result['page_name'] = "Create";
-        $result['labs'] = User::whereHas('roles', function ($query) { 
-            $query->where('id', 4); 
+        $result['labs'] = User::whereHas('roles', function ($query) {
+            $query->where('id', 4);
         })->get();
         return view('admin.lab-test.create', $result);
     }
+
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'test_name' => 'required|string|max:255',
+    //         'amount' => 'required|numeric',
+    //         'lab_id' => 'required|exists:users,id',  // Validate that lab_id exists in users table
+    //         'description' => 'nullable|string',
+    //     ]);
     
+    //     // Check if the authenticated user is an admin
+    //     if (Auth::user()->roles->contains(1)) {
+    //         // Admin logic
+    //         $lab_id = $request->lab_id; // Admin assigns the test to the selected lab
+    //     } else {
+    //         // Lab user logic
+    //         $lab_id = Auth::user()->id; // Lab assigns the test to their own lab
+    //     }
+    
+    //     // Check if the test already exists
+    //     $existingTest = LabTest::where('test_name', $request->test_name)->first();
+    
+    //     if ($existingTest) {
+    //         $testId = $existingTest->id;
+    //     } else {
+    //         // Create a new test if it doesn't exist
+    //         $test = LabTest::create([
+    //             'test_name' => $request->test_name,
+    //         ]);
+    //         $testId = $test->id;
+    //     }
+    
+    //     // Check if the test already exists for the current lab
+    //     $existingLabTest = DB::table('lab_test_name')
+    //         ->where('test_id', $testId)
+    //         ->where('lab_id', $lab_id)
+    //         ->first();
+    
+    //     if ($existingLabTest) {
+    //         return redirect()->back()->with('msg', 'This test already exists for the selected lab.');
+    //     }
+    
+    //     // Insert a new record into lab_test_name
+    //     DB::table('lab_test_name')->insert([
+    //         'test_id' => $testId,
+    //         'lab_id' => $lab_id,  // Use the correct lab_id
+    //         'amount' => $request->amount,
+    //         'description' => $request->description,
+    //     ]);
+    
+    //     return redirect()->to($request->url ?? route('lab-test.index'))->with('msg', 'Test Successfully Created');
+    // }
+    
+
+
+
     public function store(Request $request)
     {
+        
+        // Validate the incoming request
         $request->validate([
             'test_name' => 'required|string|max:255',
             'amount' => 'required|numeric',
-            'lab_id' => 'required|exists:labs,id',
+            'description' => 'nullable|string',
+            'test_id' => 'nullable|exists:labs_tests,id', // Validate that test_id exists if provided
+            'lab_test_name_id' => 'nullable|exists:lab_test_name,id', // Validate that lab_test_name_id exists if provided
         ]);
     
-        $labID = $request->lab_id;
-        if (Auth::user()->roles->contains(4)) {
-            $labID = Auth::user()->id;
-        }
-    
-        $labTest = LabTest::updateOrCreate(
-            ['id' => $request->id],
-            [
-                'test_name' => $request->test_name,
-                'amount' => $request->amount,
-                'lab_id' => $labID,
-            ]
-        );
-    
-        if ($labTest) {
-            $message = $request->id ? 'Test Successfully Updated' : 'Test Successfully Created';
-            return redirect()->to($request->url)->with('msg', $message);
+        // Determine the lab ID based on user role
+        if (Auth::user()->roles->contains(1)) {
+            $lab_id = $request->lab_id; // Admin assigns the test to the selected lab
         } else {
-            return redirect()->back()->with('error', 'Something went wrong. Please try again!');
+            $lab_id = Auth::user()->id; // Lab user assigns the test to their own lab
         }
+    
+        // Check if we are updating an existing test
+        if ($request->has('test_id')) {
+            $test = LabTest::find($request->test_id);
+            if (!$test) {
+                return redirect()->back()->with('msg', 'Test not found.');
+            }
+    
+            // Check for duplicates if test name has changed
+            if ($test->test_name !== $request->test_name) {
+                $existingTest = LabTest::where('test_name', $request->test_name)->first();
+                if ($existingTest && $existingTest->id != $test->id) {
+                    return redirect()->back()->with('msg', 'A test with this name already exists.');
+                }
+            }
+    
+            // Update the existing test
+            $test->update([
+                'test_name' => $request->test_name,
+            ]);
+            $testId = $test->id;
+        } else {
+            // Creating a new test
+            $existingTest = LabTest::where('test_name', $request->test_name)->first();
+            if ($existingTest) {
+                $testId = $existingTest->id;
+            } else {
+                $test = LabTest::create([
+                    'test_name' => $request->test_name,
+                ]);
+                $testId = $test->id;
+            }
+        }
+    
+        // Check if this test already exists for the current lab
+        $query = DB::table('lab_test_name')
+            ->where('test_id', $testId)
+            ->where('lab_id', $lab_id);
+    
+        // Exclude the current record if updating
+        if ($request->has('lab_test_name_id')) {
+            $query->where('id', '<>', $request->lab_test_name_id); // Ensure this is the correct column name for the primary key of lab_test_name
+        }
+    
+        $existingLabTest = $query->first();
+    
+        if ($request->id=='' && $existingLabTest) {
+            return redirect()->back()->with('msg', 'This test already exists for the selected lab. Please choose a different test name or lab.');
+        }
+    
+        // Insert or update the record in lab_test_name
+        if ($request->id!='') {
+            // Update existing record
+            DB::table('lab_test_name')
+                ->where('id', $request->id) // Update using lab_test_name_id
+                ->update([
+                    'test_id' => $testId,
+                    'amount' => $request->amount,
+                    'description' => $request->description,
+                    'updated_at' => now(),
+                ]);
+        } else
+         {
+            // Insert new record
+            DB::table('lab_test_name')->insert([
+                'test_id' => $testId,
+                'lab_id' => $lab_id,
+                'amount' => $request->amount,
+                'description' => $request->description,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    
+        return redirect()->to($request->url ?? route('lab-test.index'))->with('msg', 'Test Successfully ' . ($request->has('lab_test_name_id') ? 'Updated' : 'Created'));
     }
     
+    
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id, Request $request)
-    {
-        $data['data'] = User::findOrFail($id);
-        $data['appointments'] = Appointment::where('hospital_id', $id)->get();
-        $data['doctor'] = HospitalDoctor::where('hospital_id', $id)->get();
-        $data['title'] = "Lab";
-        $data['page_name'] = "List";
-        $get['abc'] = User::where('is_hospital', 1)->get();
-        $asd = HospitalDoctor::all();
-        return view('admin.lab-test.show', $data, $get)->with('HospitalDoctor', $asd);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
+        // Retrieve the lab test record by id, joining with labs_tests to get test_name
+        $result['data'] = DB::table('lab_test_name')
+            ->join('labs_tests', 'lab_test_name.test_id', '=', 'labs_tests.id')
+            ->select('lab_test_name.*', 'labs_tests.test_name')
+            ->where('lab_test_name.id', $id)
+            ->first();
+    
+        // Check if the record was found
+        if (!$result['data']) {
+            abort(404, 'Lab Test Not Found');
+        }
+    
+        // Prepare other data
         $result['title'] = "Edit Lab Test";
         $result['page_name'] = "Edit";
-        $result['states'] = State::all();
-        $result["data"] = LabTest::findOrFail($id);
-        $result['labs'] = User::whereHas('roles', function ($query) { $query->where('id', 4); })->get();
-        if ($result["data"]) {
-            return view("admin.lab-test.create", $result);
-        } else {
-            return redirect()->back()->with("error", "Data not found");
-        }
+        $result['labs'] = User::whereHas('roles', function ($q) {
+            $q->where('id', 4);
+        })->get();
+    
+        // Dump the result to inspect it
+        // dd($result);
+    
+        // Return the view with the result data
+        return view('admin.lab-test.create', $result);
     }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+    
     public function update(Request $request, $id)
     {
-        // Implementation for updating lab test (if needed)
+        return $this->store($request);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
-        $data = LabTest::find($id);
-        $data->delete();
-        return redirect()->back()->with('msg', 'Test Deleted Successfully');
+        $data = LabTestName::find($id);
+        if ($data) {
+            $data->delete();
+            return redirect()->back()->with('msg', 'Test Deleted Successfully');
+        }
+
+        return redirect()->back()->with('error', 'Test not found');
     }
 
     public function autocomplete(Request $request)
     {
         $term = $request->input('term');
-        $tests = LabTest::where('test_name', 'LIKE', "%{$term}%")->get();
 
+       
+        $tests = LabTest::where('test_name', 'LIKE', "%{$term}%")
+                    ->distinct()
+                    ->get(['test_name']);
+        
+        
         $results = $tests->map(function ($test) {
             return [
-                'id' => $test->id,
+                'id' => $test->test_name,
                 'text' => $test->test_name,
             ];
         });
-
+    
+        
         if ($results->isEmpty()) {
             $results->push([
                 'id' => 'new',
                 'text' => 'Create new test',
             ]);
         }
-
+    
         return response()->json($results);
     }
+
+    public function getLabTest($labId, Request $request)
+    {
+        $search = $request->input('search', '');
+    
+        // Fetch lab tests with search functionality
+        $data = LabTestName::select('lab_test_name.*', 'labs_tests.test_name')
+            ->join('labs_tests', 'labs_tests.id', '=', 'lab_test_name.test_id')
+            ->where('lab_test_name.lab_id', $labId)
+            ->where(function($query) use ($search) {
+                $query->where('labs_tests.test_name', 'like', "%{$search}%")
+                      ->orWhere('lab_test_name.amount', 'like', "%{$search}%");
+            })
+            ->get();
+    
+        return response()->json([
+            'data' => $data
+        ]);
+    }
+    
+
+    
+    
 }

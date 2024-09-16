@@ -66,9 +66,18 @@ Route::get('/', function () {
 Auth::routes();
 Route::post('/import-xlsx', [HomeController::class, 'importXlsx'])->name('import.xlsx');
 Route::get('/lab-test/autocomplete', [LabTestController::class, 'autocomplete'])->name('lab-test.autocomplete');
+Route::get('/labprofile/autocomplete', [ProfileController::class, 'autocomplete'])->name('labprofile.autocomplete');
 Route::get('/lab-test/get-labs', [LabTestController::class, 'getLabs'])->name('lab-test.getLabs');
 Route::post('/lab-test/add-or-update', [LabTestController::class, 'addOrUpdate'])->name('lab-test.addOrUpdate');
+Route::delete('profile/{id}', [ProfileController::class, 'destroy'])->name('profile.destroy');
+// routes/web.php
+Route::get('/get-tests-by-profile', [ProfileController::class, 'getTestsByProfile'])->name('get-tests-by-profile');
+Route::get('/get-test', [ProfileController::class, 'getTest'])->name('get-test');
+Route::get('/test', [ProfileController::class, 'test'])->name('lab-profile.test');
+Route::get('/get-lab-profiles/{labId}', [ProfileController::class, 'getLabProfiles']);
+Route::get('/get-lab-test/{labId}', [LabTestController::class, 'getLabTest']);
 
+Route::post('/add-test-to-profile', [ProfileController::class, 'addTestToProfile'])->name('lab-profile.addTestToProfile');
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/invoice/{id}', [HomeController::class, 'invoice']);
 Route::POST('import-csv', [HomeController::class, 'importCsv']);
@@ -105,7 +114,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::any('lab-test-status-update/{id}', [LabTestController::class,'labtestUpdate'])->name('lab-test-status-update');
     Route::any('package-amount-update', [PackageController::class,'amountUpdate'])->name('package-amount-update');
     Route::any('packages', [PackageController::class,'packageAmountUpdate'])->name('package');
-
+    Route::get('/get-lab-profile', [PackageController::class, 'getLabProfiles'])->name('getLabProfiles');
     Route::resource('review', ReviewController::class);
     Route::resource('educations', EducationController::class);
     Route::resource('subscription', SubscriptionController::class);
@@ -140,7 +149,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::GET('/deleted/{package_id}/{profile_id}', [ProfileController::class, 'deleted']);
     Route::resource('package', PackageController::class);
     Route::GET('/package-destroy/{id}', [PackageController::class,'destoryPackage']);
-    Route::GET('/get-profile', [PackageController::class,'packageProfile']);
+    Route::GET('/get-profile', [ProfileController::class,'packageProfile']);
     Route::GET('/get-package-profile', [PackageController::class,'getPackageProfile']);
     Route::GET('/deleted-profile/{package_id}/{profile_id}', [PackageController::class, 'deleted']);
     Route::resource('appointments-report', AppointmentReportController::class);

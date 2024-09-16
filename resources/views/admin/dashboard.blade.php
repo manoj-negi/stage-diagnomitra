@@ -245,18 +245,7 @@
                   <th>Ratings</th>
                   <th>Review</th>
                </tr>
-               @forelse($reviews as $review) 
-               <tr>
-                  <td>@if(isset($review->hospital)) <a href="{{url('lab/'.$review->hospital->id.'/edit')}}"> {{ isset($review->hospital) ? $review->hospital->name : '---' }}</a>@endif</td>
-                  <td>@if(isset($review->patient)) <a href="{{url('patient/'.$review->patient->id)}}">{{ isset($review->patient->name) ? $review->patient->name : '---' }}</a> @endif</td>
-                  <td>{{ $review->ratings ?? '---' }} Star</td>
-                  <td>{{ $review->review ?? '---' }}</td>
-               </tr>
-               @empty
-               <tr>
-                  <td colspan="5" class="text-center"> Review is not found </td>
-               </tr>
-               @endforelse
+           
             </table>
          </div>
       </div>
@@ -295,17 +284,7 @@
                   <th>Amount</th>
                   <th>Admin Status</th>
                </tr>
-               @forelse($testList as $item) 
-               <tr>
-                  <td>{{ucfirst($item->test_name ?? '-')}}</td>
-                  <td>{{number_format($item->amount,2)}}</td>
-                  <td>{{ucfirst($item->admin_status)}} </td>
-               </tr>
-               @empty
-               <tr>
-                  <td colspan="5" class="text-center">Tests is not found </td>
-               </tr>
-               @endforelse
+             
             </table>
          </div>
       </div>

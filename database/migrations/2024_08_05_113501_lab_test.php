@@ -16,11 +16,16 @@ class Labtest extends Migration
         Schema::create('labs_tests', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('lab_id');
-            $table->string('test_name')->unique();
+            $table->string('test_name');
             $table->decimal('amount', 10, 2);
             $table->timestamps();
-            // Add foreign key constraints
-            $table->foreign('lab_id')->references('id')->on('labs')->onDelete('cascade');
+            $table->string('description', 100)->nullable();
+
+            // Add foreign key constraint
+            $table->foreign('lab_id')->references('id')->on('users')->onDelete('cascade');
+
+            // Add composite unique key on lab_id and test_name
+            $table->unique(['lab_id', 'test_name']);
         });
     }
 
@@ -31,10 +36,14 @@ class Labtest extends Migration
      */
     public function down()
     {
-        Schema::table('labtests', function (Blueprint $table) {
-            // Drop the foreign key constraints
+        Schema::table('labs_tests', function (Blueprint $table) {
+            // Drop the composite unique key
+            $table->dropUnique(['lab_id', 'test_name']);
+
+            // Drop the foreign key constraint
             $table->dropForeign(['lab_id']);
         });
+
         Schema::dropIfExists('labs_tests');
     }
 }

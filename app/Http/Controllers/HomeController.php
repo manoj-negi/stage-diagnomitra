@@ -53,7 +53,7 @@ class HomeController extends Controller
         return redirect()->back()->with('message', 'Request created successfully!');
      }
      public function importCsv(Request $request){
-        die("fvdsbvdskvdsjkvbdsvjkdsbvjkbjk");
+        // die("fvdsbvdskvdsjkvbdsvjkdsbvjkbjk");
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
             'lab' => 'required' 
@@ -70,7 +70,7 @@ class HomeController extends Controller
                     $firstRow = false;
                     continue;
                 }
-                $result = Package::create([
+                $result = LabTest::create([
                     'package_name' => $row[0] ?? '',
                     'amount' => $row[1] ?? '',
                     'lab_id' =>  $request->lab,
@@ -177,7 +177,7 @@ class HomeController extends Controller
         $data['todayAppointments'] = $todayAppointments->take(5)->get();
         $data['oldAppointments'] = $oldAppointments->take(5)->get();
         $data['upComingAppointments'] = $upComingAppointments->take(5)->get();
-        $data['reviews'] = $reviews->take(5)->get();
+        // $data['reviews'] = $reviews->take(5)->get();
         $data['supports'] = $supports->take(5)->get();
         return view('admin.dashboard',$data);
         

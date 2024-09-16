@@ -8,31 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 class LabTest extends Model
 {
     use HasFactory;
+
     protected $table = 'labs_tests';
+
     protected $fillable = [
-        'test_name', 
-        'hospital_id', 
-        'admin_status', 
-        'amount',
-        'description',
-        'created_at',
-        'updated_at'
+        'test_name',
     ];
 
-
-
- public function getTitleAttribute($value)
+    public function labTestNames()
     {
-        return ucfirst($value);
+        return $this->hasMany(LabTestName::class, 'test_id');
     }
-    public function getDescriptionAttribute($value)
+    public function labTestName()
     {
-        return ucfirst($value);
-    }
+        return $this->belongsTo(LabTestName::class, 'lab_test_name_id');
 
-    public function labname()
-    {
-        return $this->hasOne(User::class, 'id', 'hospital_id');
+        // return $this->belongsTo(LabTestName::class); // Adjust this according to your actual relationship
     }
-
 }

@@ -35,8 +35,7 @@ class RadioLogyController extends Controller
     $data['page_name'] = "List";
     $data['labs'] = User::whereHas('roles', function($q){$q->where('id','=', 4);})->get();
 
-    $dataTest = Package::where('type','test');
-  
+    $dataTest = Package::query();
     if(!empty($request->search)){
         $dataTest->where('package_name', 'LIKE', '%' . $request->search . '%');
     }

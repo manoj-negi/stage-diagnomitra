@@ -239,6 +239,11 @@ class User extends Authenticatable
     }
 
 
+public function lab()
+{
+    return $this->belongsTo(Lab::class, 'lab_id');
+}
+
     //use mutator
     public function getNameattribute($value)
     {

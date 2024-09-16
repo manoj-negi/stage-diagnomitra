@@ -21,7 +21,7 @@ class Labprofile extends Migration
             $table->timestamps();
 
             // Add the foreign key constraint
-            $table->foreign('lab_id')->references('id')->on('labs')->onDelete('cascade');
+            $table->foreign('lab_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

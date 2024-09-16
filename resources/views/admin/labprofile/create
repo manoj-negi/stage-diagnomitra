@@ -1,4 +1,3 @@
-
 @extends('layouts.adminCommon')
 
 @section('content')
@@ -33,7 +32,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="diagnomitra_profile">Select Diagnomitra Profile</label>
-                                    <select name="diagnomitra_profile" class="form-control" id="diagnomitra_profile">
+                                    <select name="diagnomitra_profile" class="form-control select2profile" id="diagnomitra_profile">
                                         <option value="">Select Profile</option>
                                         @foreach($diagnomitraProfiles as $profile)
                                             <option value="{{ $profile->id }}" {{ old('diagnomitra_profile', $data->diagnomitra_profile ?? '') == $profile->id ? 'selected' : '' }}>
@@ -61,7 +60,7 @@
                             @if(Auth::user()->roles->contains(1))
                                 <div class="col-md-6">
                                     <label for="lab_id" class="form-label">Select Lab<span class="text-danger">*</span></label>
-                                    <select name="lab_id" class="form-control labId" id="lab_id">
+                                    <select name="lab_id" class="form-control select2lab" id="lab_id">
                                         <option value="">Select Lab</option>
                                         @foreach($labs as $lab)
                                             <option value="{{ $lab->id }}" {{ old('lab_id', $data->lab_id ?? '') == $lab->id ? 'selected' : '' }}>
@@ -144,24 +143,31 @@
 @section('js')
 <script>
 $(document).ready(function() {
-    function formatItem(item) {
-        if (item.loading) return item.text;
-        return "<div class='select2-result-item'>" + item.test_name + "</div>";
-    }
+    // Initialize Select2 for profile, lab, and tests
+    $('#diagnomitra_profile').select2({
+        placeholder: 'Select a profile',
+        allowClear: true
+    });
 
-    function formatItemSelection(repo) {
-        return repo.test_name || repo.text;
-    }
+    $('#lab_id').select2({
+        placeholder: 'Select a lab',
+        allowClear: true
+    });
 
-    // Initialize Select2 with all tests
+    $('#testsData').select2({
+        placeholder: 'Select tests',
+        allowClear: true
+    });
+
+    // Initialize Select2 with AJAX for test names
     $('.select2test').select2({
         ajax: {
-            url: "{{ url('/get-test') }}", // Endpoint to fetch all tests
+            url: "{{ url('/get-test') }}",
             dataType: 'json',
             delay: 250,
             data: function(params) {
                 return {
-                    q: params.term,
+                    q: params.term, // search term
                     page: params.page || 1
                 };
             },
@@ -170,7 +176,7 @@ $(document).ready(function() {
                 return {
                     results: data.items,
                     pagination: {
-                        more: (params.page * 10) < data.total_count 
+                        more: (params.page * 10) < data.total_count
                     }
                 };
             },
@@ -178,47 +184,34 @@ $(document).ready(function() {
         },
         placeholder: 'Search for a test...',
         minimumInputLength: 1,
-        escapeMarkup: function(markup) { return markup; },
         templateResult: formatItem,
         templateSelection: formatItemSelection
     });
 
     // Fetch and populate tests based on profile selection
-    $('#diagnomitra_profile').change(function() {
+    $('#diagnomitra_profile').change(function(){
         var profileId = $(this).val();
         $.ajax({
-            url: "{{ url('/get-tests-by-profile') }}", // Endpoint to fetch tests by profile
+            url: "{{ url('/get-tests-by-profile') }}",
             type: 'GET',
             data: { profile_id: profileId },
-            success: function(response) {
+            success: function(response){
                 var select = $('#testsData').select2();
-                var selectedIds = response.map(function(item) { return item.id; });
-
-                // Fetch all tests and select the ones from the profile
-                $.ajax({
-                    url: "{{ url('/get-test') }}", // Fetch all tests again to keep the full list
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(allTests) {
-                        select.empty();
-                        $.each(allTests.items, function(index, item) {
-                            var isSelected = selectedIds.includes(item.id);
-                            var newOption = new Option(item.test_name, item.id, isSelected, isSelected);
-                            select.append(newOption);
-                        });
-                        select.val(selectedIds).trigger('change.select2');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("An error occurred while fetching all tests:", error);
-                    }
+                var selectedIds = [];
+                select.empty();
+                $.each(response, function(index, item) {
+                    selectedIds.push(item.id);
+                    var isSelected = selectedIds.includes(item.id);
+                    var newOption = new Option(item.test_name, item.id, isSelected, isSelected);
+                    select.append(newOption);
                 });
+                select.val(selectedIds).trigger('change.select2'); // Notify Select2 about the update
             },
             error: function(xhr, status, error) {
-                console.error("An error occurred while fetching tests by profile:", error);
+                console.error("An error occurred while fetching tests:", error);
             }
         });
     });
 });
-
 </script>
 @endsection
