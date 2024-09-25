@@ -311,13 +311,33 @@ class LabTestController extends Controller
         return response()->json($results);
     }
 
+    // public function getLabTest($labId, Request $request)
+    // {
+    //     $search = $request->input('search', '');
+    
+    //     // Fetch lab tests with search functionality
+    //     $data = LabTestName::select('lab_test_name.*', 'labs_tests.test_name')
+    //         ->join('labs_tests', 'labs_tests.id', '=', 'lab_test_name.test_id')
+    //         ->where('lab_test_name.lab_id', $labId)
+    //         ->where(function($query) use ($search) {
+    //             $query->where('labs_tests.test_name', 'like', "%{$search}%")
+    //                   ->orWhere('lab_test_name.amount', 'like', "%{$search}%");
+    //         })
+    //         ->get();
+    
+    //     return response()->json([
+    //         'data' => $data
+    //     ]);
+    // }
+    
     public function getLabTest($labId, Request $request)
     {
         $search = $request->input('search', '');
     
-        // Fetch lab tests with search functionality
-        $data = LabTestName::select('lab_test_name.*', 'labs_tests.test_name')
+        // Fetch lab tests with search functionality and include lab name
+        $data = LabTestName::select('lab_test_name.*', 'labs_tests.test_name', 'users.name as lab_name') // Add lab name
             ->join('labs_tests', 'labs_tests.id', '=', 'lab_test_name.test_id')
+            ->join('users', 'lab_test_name.lab_id', '=', 'users.id') // Join with the users table to get lab name
             ->where('lab_test_name.lab_id', $labId)
             ->where(function($query) use ($search) {
                 $query->where('labs_tests.test_name', 'like', "%{$search}%")
@@ -330,7 +350,6 @@ class LabTestController extends Controller
         ]);
     }
     
-
     
     
 }

@@ -134,6 +134,9 @@ class TestRequestController extends Controller
         // $result['HospitalCategory'] = HospitalCategory::all();
         $result['title'] = "Test Request";
         $result['page_name'] = "Create";
+        $result['labs'] = User::whereHas('roles', function($q) {
+            $q->where('id', 4);
+        })->get();
         // $result['State'] = State::all();
         $result['abc'] = User::where('is_hospital',1)->get();
         return view('admin.test-request.create', $result);
@@ -182,20 +185,20 @@ class TestRequestController extends Controller
         // return $emails;
         // $email = 'raoabhiyadav323@gmail.com';
         // $data = ['key' => 'value']; 
-        $mailData = MailTemplate::where('category', 'contact-us')->first();
-        $basicInfo = [
-            '{name}' => ($result->patient_name)??'',
-            '{age}' => ($result->age)??'',
-            '{test}' => ($result->test_type)??'',
-            '{gender}' => ($result->gender)??'',
-            '{number}' => ($result->contact)??'',
-            '{status}' => ($result->payment_status)??'',
-            '{amount}' => ($result->amount)??'',
-            '{address}' => ($result->address)??'',
-            '{message}' => ($message)??'',
-            '{siteName}' => '',
-        ];
-        $this->SendMail($emails, $mailData, $basicInfo);
+        // $mailData = MailTemplate::where('category', 'contact-us')->first();
+        // $basicInfo = [
+        //     '{name}' => ($result->patient_name)??'',
+        //     '{age}' => ($result->age)??'',
+        //     '{test}' => ($result->test_type)??'',
+        //     '{gender}' => ($result->gender)??'',
+        //     '{number}' => ($result->contact)??'',
+        //     '{status}' => ($result->payment_status)??'',
+        //     '{amount}' => ($result->amount)??'',
+        //     '{address}' => ($result->address)??'',
+        //     '{message}' => ($message)??'',
+        //     '{siteName}' => '',
+        // ];
+        // $this->SendMail($emails, $mailData, $basicInfo);
 
         return redirect()->route('test-request.index')->with('Your Message has received. Thank you to contact us!');
     }

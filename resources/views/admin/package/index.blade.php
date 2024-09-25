@@ -17,7 +17,13 @@
                 </div>
             @endif
         </div>
+        
         <div class="col-lg-12">
+            <!-- Placeholder for success message -->
+            <div class="alert alert-success d-none" id="success-message">
+                Package  updated successfully.
+            </div>
+
             <div class="demo-inline-spacing">
                 <div class="card">
                     <div class="px-0 mt-0">
@@ -28,9 +34,7 @@
                                 </form>
                                 <form action="{{ url('package-amount-update') }}" method="POST">
                                     @csrf
-                                    @if(Auth::user()->roles->contains(4))
-                                        <button class="btn btn-primary m-2" style="float:right;" type="submit">Save</button>
-                                    @endif
+                                  
                                     <table class="table table-bordered m-2">
                                         <thead>
                                             <tr>
@@ -39,9 +43,9 @@
                                                     <th>Available</th>
                                                 @endif
                                                 <th>Package Name</th>
-                                                <th>Profiles Count</th> <!-- Profiles count -->
+                                                <th>Profiles Count</th>
                                                 @if(Auth::user()->roles->contains(4))
-                                                    <th>Main Package Name</th> <!-- Main package name -->
+                                                    <th>Main Package Name</th>
                                                 @endif
                                                 <th>Amount</th>
                                                 <th>Action</th>
@@ -54,23 +58,16 @@
                                                     @if(Auth::user()->roles->contains(4))
                                                         <td>
                                                             <div class="form-check form-check-inline mt-3">
-                                                                <input class="form-check-input checkbox" data="{{ $result->id }}" type="checkbox" value="1" {{ $result->is_selected == '1' ? 'checked' : '' }}>
-                                                                <input type="hidden" name="checkbox[]" value="{{ $result->is_selected == '1' ? '1' : '0' }}">
+                                                                <input class="form-check-input checkbox" data-id="{{ $result->id }}" type="checkbox" value="1" {{ $result->is_selected == '1' ? 'checked' : '' }}>
                                                             </div>
                                                         </td>
                                                     @endif
                                                     <td>{{ $result->package_name ?? 'Package not selected' }}</td>
                                                     <td>Total profile: {{ $result->profiles->count() ?? '0' }}</td>
                                                     @if(Auth::user()->roles->contains(4))
-                                                        <td>
-                                                        {{ $result->parentPackage->package_name ?? '--' }} <!-- Show parent package name -->
-                                                        </td>
+                                                        <td>{{ $result->parentPackage->package_name ?? '--' }}</td>
                                                     @endif
-                                                    <td>
-                                                       
-                                                            {{ number_format($result->amount, 2) }}
-                                                       
-                                                    </td>
+                                                    <td>{{ number_format($result->amount, 2) }}</td>
                                                     <td>
                                                         <a class="btn btn-primary btn-sm" href="{{ route('package.show', $result->id) }}">
                                                             <i class="fa fa-eye" aria-hidden="true"></i>
@@ -104,4 +101,40 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('js')
+<script>
+   $(document).ready(function() {
+      $(document).on('change', '.checkbox', function() {
+         var packageId = $(this).attr('data-id');
+         var isSelected = $(this).is(':checked') ? 1 : 0;
+
+         $.ajax({
+            url: '{{ route("package.updateSelection") }}',  // Make sure this route is defined in your routes/web.php
+            type: 'POST',
+            data: {
+               _token: '{{ csrf_token() }}',
+               id: packageId,
+               is_selected: isSelected
+            },
+            success: function(response) {
+               if (response.success) {
+                  // Show the success message and then hide it after 3 seconds
+                  $('#success-message').removeClass('d-none').fadeIn();
+                  setTimeout(function() {
+                     $('#success-message').fadeOut();
+                  }, 3000);
+               } else {
+                  alert('Failed to update package selection');
+               }
+            },
+            error: function(xhr) {
+               console.log(xhr.responseText);
+               alert('An error occurred while updating package selection');
+            }
+         });
+      });
+   });
+</script>
 @endsection

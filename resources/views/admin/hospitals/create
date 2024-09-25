@@ -98,26 +98,55 @@
                      </div>
                      <!-- home end collection -->
                   </div>
-                  
-                     <div class="form-group col-6 mb-3 {{ $errors->has('pincode') ? 'has-error' : '' }}">
-    <label class="form-label" for="pincode">{{ __('Pincode') }}<span class="text-danger">*</span></label>
-    <select name="pincode[]" id="pincode" class="select2 form-control pincode" multiple="multiple">
-    @foreach($pincodes ?? [] as $item)
-        <option value="{{ $item->id }}" 
-            {{ isset($updates->pincodes) && in_array($item->id, $updates->pincodes) ? 'selected' : '' }}>
-            {{ $item->pincode }}
-        </option>
-    @endforeach
-</select>
-
-    @if($errors->has('pincode'))
-    <p class="help-block">
-        {{ $errors->first('pincode') }}
-    </p>
-    @endif
-</div>
+                  <div class="row">
+                     <div class="form-group col-6 {{ $errors->has('state_id') ? 'has-error' : '' }}">
+                        <label for="phone">State<span class="text-danger">*</span></label>
+                        <select id="state_id1" name="state_id" class="form-control" id="" >
+                        @foreach($state as $stateItem)
+                        <option value="{{ $stateItem->id }}" {{ old('state_id', isset($updates) && $updates->state_id == $stateItem->id) ? 'selected' : '' }}>
+                        {{ $stateItem->name }}        
+                        </option>
+                        @endforeach
+                        </select>
+                        @if($errors->has('state_id'))
+                        <p class="help-block">
+                           {{ $errors->first('state_id') }}
+                        </p>
+                        @endif
+                     </div>
+                     <div class="form-group col-6 mb-3 {{ $errors->has('city') ? 'has-error' : '' }}">
+                        <label class="form-label" for="city">{{ __('City') }}<span class="text-danger">*</span></label>
+                        <select name="city[]" id="city" class="select2 form-control city" multiple="multiple">
+                        @foreach($city ?? [] as $item)
+                        <option value="{{ $item->id }}" {{ isset($updates->cities) && in_array($item->id,$updates->cities->pluck('id')->toArray()) ? 'selected' : '' }}>
+                        {{ $item->city }}
+                        </option>
+                        @endforeach
+                        </select>
+                        @if($errors->has('city'))
+                        <p class="help-block">
+                           {{ $errors->first('city') }}
+                        </p>
+                        @endif
+                     </div>
                   </div>
-                 
+                  <div class="row">
+                     <div class="form-group col-md-6 {{ $errors->has('hospital_category') ? 'has-error' : '' }}">
+                        <label for="phone">Lab Category<span class="text-danger">*</span></label>
+                        <select id="hospital_category1" name="hospital_category" class="form-control" id="" >
+                           <option value="">Select Lab Category</option>
+                           @foreach($HospitalCategory as $item)
+                           <option value="{{ $item->id }}" {{ old('hospital_category', isset($updates) && $updates->hospital_category == $item->id) ? 'selected' : '' }}>
+                           {{ $item->title }}        
+                           </option>
+                           @endforeach
+                        </select>
+                        @if($errors->has('hospital_category'))
+                        <p class="help-block">
+                           {{ $errors->first('hospital_category') }}
+                        </p>
+                        @endif
+                     </div>
                      <div class="col-md-12">
                         <label class="form-label">Address</label>
                         <textarea name="address" class="form-control">{{ old('address', isset($updates) && isset($updates['address']) ? $updates['address'] : '') }}</textarea>
@@ -226,34 +255,26 @@
    @endif
 </div>
 <script>
-$(document).ready(function() {
-    $('#pincode').select2({
-        placeholder: 'Select or Add Pincodes',
-        tags: true,  // Allows adding new pincode entries
-        ajax: {
-            url: '/pincode/autocomplete',  // Update this with the correct route
-            dataType: 'json',
-            delay: 250,
-            data: function (params) {
-                return {
-                    q: params.term // search term
-                };
-            },
-            processResults: function (data) {
-                return {
-                    results: $.map(data, function (item) {
-                        return {
-                            id: item.id,
-                            text: item.pincode // Assuming you are returning pincode data from your controller
-                        }
-                    })
-                };
-            },
-            cache: true
-        }
-    });
-});
-
+   $(document).ready(function() {
+       $('#state_id').change(function() {
+           var companyId = $(this).val();
+           $('#city').html('');
+           console.log(companyId);
+           $.ajax({
+               url: "{{ url('/get-citys') }}",
+               method: 'GET',
+               data: {
+                   state_id: companyId
+               },
+               success: function(data) {
+                   $('#city').html(data.outputDataemployees);
+               },
+               error: function(xhr, status, error) {
+                   console.error(xhr.responseText);
+               }
+           });
+       });
+   });
 </script>
 <script>
    $("#state_id").change(function(){

@@ -177,6 +177,7 @@
     <script src="{{ asset('datatable/libs/datatables-buttons/buttons.print.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.0/sweetalert.min.js"></script>
     <script src="//cdn.ckeditor.com/4.14.0/standard/ckeditor.js"></script>
+    
     <style>
       table.dataTable thead .sorting:before{
         content: "\2191" !important;

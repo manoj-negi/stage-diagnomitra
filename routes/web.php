@@ -49,6 +49,8 @@ use App\Http\Controllers\PromoController;
 use App\Http\Controllers\RadioLogyController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\Admin\BlogPostController;
+use App\Http\Controllers\PincodeController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -76,6 +78,11 @@ Route::get('/get-test', [ProfileController::class, 'getTest'])->name('get-test')
 Route::get('/test', [ProfileController::class, 'test'])->name('lab-profile.test');
 Route::get('/get-lab-profiles/{labId}', [ProfileController::class, 'getLabProfiles']);
 Route::get('/get-lab-test/{labId}', [LabTestController::class, 'getLabTest']);
+Route::post('update-checkboxes', [ProfileController::class, 'updateCheckboxes']);
+Route::post('package/update-selection', [PackageController::class, 'updateSelection'])->name('package.updateSelection');
+Route::post('/update-profile-selection', [ProfileController::class, 'updateSelection'])->name('profile.updateSelection');
+Route::post('/pincodes/import', [PincodeController::class, 'import'])->name('pincodes.import');
+Route::post('/pincodes/import-csv', [PincodeController::class, 'importPincodeCsv'])->name('import.pincode.csv');
 
 Route::post('/add-test-to-profile', [ProfileController::class, 'addTestToProfile'])->name('lab-profile.addTestToProfile');
 Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -106,6 +113,11 @@ Route::group(['middleware' => 'auth'], function () {
     Route::resource('permission', PermissionController::class);
     Route::resource('doctor', DoctorController::class);
     Route::resource('lab', HospitalController::class);
+    Route::get('/pincode/autocomplete', [HospitalController::class, 'autocomplete'])->name('pincode.autocomplete');
+    Route::get('/pincode/search', [HospitalController::class, 'searchPincode'])->name('pincode.search');
+
+    Route::resource('pincodes', PincodeController::class);
+    
     Route::resource('patient', PatientController::class);
     Route::resource('site-settings', SettingsController::class);
     Route::get('hospital-profile', [SettingsController::class, 'hospital_profile']);

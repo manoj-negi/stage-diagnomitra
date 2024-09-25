@@ -112,7 +112,7 @@
 
                                 <div class="col-md-6">
                                     @if(isset($data->image))
-                                        <img class="img-fluid rounded my-4" src="{{ url('uploads/package', $data->image) }}" height="80" width="160" alt="Profile Image">
+                                        <img class="img-fluid rounded my-4" src="{{ url('uploads/profile', $data->image) }}" height="80" width="160" alt="Profile Image">
                                     @endif
                                 </div>
                             @endif

@@ -39,7 +39,27 @@
                                 <span class="validationclass text-danger" style="position: absolute;top: 90px;">{{ $message }}</span>
                             @enderror
                         </div>
-
+<!-- Lab Selection Dropdown -->
+@if(Auth::user()->roles->contains(1)) 
+    <div class="col-md-6">
+        <label for="lab_id" class="form-label">Select Lab<span class="text-danger">*</span></label>
+        <select name="lab_id" class="form-control labId" id="lab_id" required>
+            <option value="">Select Lab</option>
+            @foreach($labs as $lab)
+                <option value="{{ $lab->id }}" {{ old('lab_id', $result->lab_id ?? '') == $lab->id ? 'selected' : '' }}>
+                    {{ $lab->name }}
+                </option>
+            @endforeach
+        </select>
+        @error('lab_id')
+        <span class="validationclass text-danger">{{ $message }}</span>
+        @enderror
+    </div>
+@else
+    @if(Auth::user()->roles->contains(4)) 
+        <input type="hidden" name="lab_id" value="{{ Auth::user()->lab_id }}" />
+    @endif
+@endif
                         <div class="col-md-6">
                             <label class="form-label">Patient Age<span class="text-danger">*</span></label>
                             <input type="number" max="100" min="0" name="age" class="form-control" value="{{ request()->get('age') }}" required />

@@ -18,6 +18,7 @@ class LabProfile extends Model
         'profile_name',
         'description',
         'amount',
+        'image',
         'TAT',  // Newly added column
         'no_of_parameter',  // Newly added column
         'updated_at',

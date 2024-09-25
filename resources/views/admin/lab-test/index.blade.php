@@ -152,7 +152,7 @@ function fetchLabTests(labId, search = '') {
                         <tr>
                             <td>${index + 1}</td>
                             <td>${test.test_name ?? ''}</td>
-                             <td>${'diagnomitra'}</td> <!-- Adjust property names based on your API response -->
+                            <td>${test.lab_name ?? ''}</td>  <!-- Lab name from response -->
                             <td>${parseFloat(test.amount ?? 0).toFixed(2)}</td>
                             <td>
                                 <a href="/lab-test/edit/${test.id}" class="btn btn-primary btn-sm mr-1"><i class="fa fa-edit"></i></a>
@@ -177,6 +177,7 @@ function fetchLabTests(labId, search = '') {
     });
 }
 </script>
+
 
 
 

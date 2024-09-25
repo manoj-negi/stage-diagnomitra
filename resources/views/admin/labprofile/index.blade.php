@@ -1,10 +1,11 @@
 @extends('layouts.adminCommon')
+
 @section('content')
 <div class="container">
    <div class="row">
       <div class="col-md-12 text-right">
-         <?php  $url = Request::segment(1); ?>
-         <a class="btn btn-primary btn-sm my-3" href='{{url("profile/create?url=$url")}}'>Create</a>
+         <?php $url = Request::segment(1); ?>
+         <a class="btn btn-primary btn-sm my-3" href='{{ url("profile/create?url=$url") }}'>Create</a>
          @if ($message = Session::get('msg'))
          <div class="alert alert-danger alert-dismissible text-left mt-2 alertmsg mb-3">
             <button type="button" class="close" data-dismiss="alert">×</button> 
@@ -12,6 +13,11 @@
          </div>
          @endif
       </div>
+      <div class="col-lg-12">
+            <!-- Placeholder for success message -->
+            <div class="alert alert-success d-none" id="success-message">
+                Profile  updated successfully.
+            </div>
       <div class="col-lg-12">
          <div class="demo-inline-spacing">
             <div class="card">
@@ -48,14 +54,14 @@
                                     <div class="col-md-3 mt-3 d-flex">
                                        <input type="text" id="search" name="search" placeholder="Search" class="form-control" value="{{ app('request')->input('search') }}">
                                        <button type="submit" class="form-control src-btn"><i class="fa fa-search" aria-hidden="true"></i></button>
-                                       <a class="form-control src-btn" href="{{url('profile')}}"><i class="fa fa-rotate-left"></i></a>
+                                       <a class="form-control src-btn" href="{{ url('profile') }}"><i class="fa fa-rotate-left"></i></a>
                                     </div>
                                  </div>
                               </div>
                            </div>
                         </form>
                         <form>
-                           <button class="btn btn-primary m-2" style="float:right;" type="submit">Save</button>
+                      
                            <table class="table table-bordered m-2">
                               <thead>
                                  <tr>
@@ -76,18 +82,18 @@
                                  </tr>
                               </thead>
                               <tbody>
-                                 @forelse($data as $key => $result)
+                              @forelse($data as $key => $result)
                                  <tr>
                                     <td>{{ $key + 1 }}</td>
                                     @if(Auth::user()->roles->contains(4))
                                     <td>
                                        <div class="form-check form-check-inline mt-3">
-                                          <input class="form-check-input checkbox" data="{{$result->id}}" type="checkbox" id="inlineCheckbox1" value="1" {{ !empty($value) && $value->is_selected == '1' ? 'checked' : '' }}>
-                                          <input type="hidden" name="checkbox[]" class="form-control" id="checked_{{$result->id}}" value="{{ !empty($value) && $value->is_selected == '1' ? '1' : '0' }}">  
+                                       <input class="form-check-input checkbox" data-id="{{ $result->id }}" type="checkbox" value="1" {{ $result->is_selected == '1' ? 'checked' : '' }}>
                                        </div>
                                     </td>
                                     @endif
                                     <td>{{ $result->profile_name ?? 'Profile not selected' }}</td>
+                                    <!-- Rest of the columns -->
                                     @if(Auth::user()->roles->contains(4))
                                     <!-- <td>
                                        @php
@@ -106,17 +112,15 @@
                                        {{ number_format($result->amount, 2) }}
                                     </td>
                                     <td>
-                                       <a class="btn btn-primary btn-sm" href="{{route('profile.show', $result->id)}}">
+                                       <a class="btn btn-primary btn-sm" href="{{ route('profile.show', $result->id) }}">
                                           <i class="fa fa-eye" aria-hidden="true"></i>
                                        </a>
                                        @if(Auth::user()->roles->contains(1) || Auth::user()->id == $result->lab_id)
-                                       <a class="btn btn-primary btn-sm" href='{{route('profile.edit', $result->id)."?url=$url"}}'>
+                                       <a class="btn btn-primary btn-sm" href='{{ route('profile.edit', $result->id)."?url=$url" }}'>
                                           <i class="fa fa-pencil-square-o" aria-hidden="true"></i>
                                        </a>
-                                       <a onclick="return confirm('Are you sure you want to delete this item?');" href="{{url('profile-destroy',$result->id)}}" 
-                                       <button class="btn btn-danger btn-sm" type="submit">
-                                          <i class="fa fa-trash"  aria-hidden="true" style="color:#fff"></i>
-                                       </button>
+                                       <a onclick="return confirm('Are you sure you want to delete this item?');" href="{{ url('profile-destroy', $result->id) }}" class="btn btn-danger btn-sm">
+                                          <i class="fa fa-trash" aria-hidden="true" style="color:#fff"></i>
                                        </a>
                                        @endif
                                     </td>
@@ -128,6 +132,8 @@
                                  @endforelse
                               </tbody>
                            </table>
+                           {{ $data->links('pagination::bootstrap-4') }}
+
                            <div id="pagination">{{ $data->links() }}</div>
                         </form>
                      </div>
@@ -139,80 +145,106 @@
    </div>
 </div>
 @endsection
+
 @section('js')
 <script>
-   $(document).ready(function() {
+    $(document).ready(function() {
+      // Listen for checkbox changes
       $(document).on('change', '.checkbox', function() {
-         var value = $(this).attr('data');
-         if ($(this).is(':checked')) {
-            $("#checked_"+value).val(1);
-         } else {
-            $("#checked_"+value).val(0);
-         }
+         var profileId = $(this).attr('data-id');
+         var isSelected = $(this).is(':checked') ? 1 : 0;
+
+         // Make an AJAX request to update the profile selection
+         $.ajax({
+            url: '/update-profile-selection', // Route to handle selection updates
+            type: 'POST',
+            data: {
+               _token: '{{ csrf_token() }}', // Include CSRF token
+               profile_id: profileId,
+               is_selected: isSelected
+            },
+            success: function(response) {
+               if (response.success) {
+                  // Show the success message and then hide it after 3 seconds
+                  $('#success-message').removeClass('d-none').fadeIn();
+                  setTimeout(function() {
+                     $('#success-message').fadeOut();
+                  }, 3000);
+               } else {
+                  alert('Failed to update package selection');
+               }
+            },
+            error: function(xhr) {
+               console.log(xhr.responseText);
+               alert('An error occurred while updating package selection');
+            }
+         });
       });
-   });
-   $(document).ready(function() {
-      setTimeout(function(){
+
+      // Auto-remove alerts after 3 seconds
+      setTimeout(function() {
          $("div.alert").remove();
-      }, 3000 ); // 3 secs
+      }, 3000);
    });
-</script>
-<script>
-    function fetchLabProfiles(labId) {
-        if (labId) {
-            $.ajax({
-                url: '/get-lab-profiles/' + labId,
-                type: 'GET',
-                success: function(data) {
-                  console.log(data);  // Check if profiles and counts are being returned
 
-                    updateProfileTable(data.profiles);
-                },
-                error: function(xhr) {
-                    console.error("Error fetching profiles:", xhr);
-                }
-            });
-        } else {
-            updateProfileTable([]);
-        }
-    }
+   function fetchLabProfiles(labId) {
+      if (labId) {
+         $.ajax({
+            url: '/get-lab-profiles/' + labId,
+            type: 'GET',
+            success: function(data) {
+               updateProfileTable(data.profiles);
+            },
+            error: function(xhr) {
+               console.error("Error fetching profiles:", xhr);
+            }
+         });
+      } else {
+         updateProfileTable([]);
+      }
+   }
 
-    function updateProfileTable(profiles) {
-        var tableBody = $('tbody');
-        tableBody.empty();
+   function updateProfileTable(profiles) {
+      var tableBody = $('tbody');
+      tableBody.empty();
 
-        if (profiles.length > 0) {
-        profiles.forEach(function(profile, index) {
-            // Handle undefined fields by providing a fallback (e.g., '--')
+      if (profiles.length > 0) {
+         profiles.forEach(function(profile, index) {
             var profileName = profile.profile_name || '--';
-            var totalTests = profile.labs_tests_profiles_count || 0;  // Use the count field
+            var totalTests = profile.total_tests || 0;
             var labName = profile.lab_name || '--';
             var amount = profile.amount !== undefined ? profile.amount.toFixed(2) : '--';
 
             var row = `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${profileName}</td>
-                    <td>${totalTests}</td>  <!-- Display total test count here -->
-                    <td>${labName}</td>
-                    <td>${amount}</td>
-                    <td>
-                        <a class="btn btn-primary btn-sm" href="/profile/${profile.id}">
-                            <i class="fa fa-eye" aria-hidden="true"></i>
-                        </a>
-                        <a class="btn btn-primary btn-sm" href="/profile/edit/${profile.id}">
-                            <i class="fa fa-pencil-square-o" aria-hidden="true"></i>
-                        </a>
-                        <a onclick="return confirm('Are you sure you want to delete this item?');" href="/profile-destroy/${profile.id}" class="btn btn-danger btn-sm">
-                            <i class="fa fa-trash" aria-hidden="true" style="color:#fff"></i>
-                        </a>
-                    </td>
-                </tr>`;
+               <tr>
+                  <td>${index + 1}</td>
+                  <td>${profileName}</td>
+                  <td>${totalTests}</td>
+                  <td>${labName}</td>
+                  <td>${amount}</td>
+                  <td>
+                     <a class="btn btn-primary btn-sm" href="/profile/${profile.id}">
+                        <i class="fa fa-eye" aria-hidden="true"></i>
+                     </a>
+                     <a class="btn btn-primary btn-sm" href="/profile/${profile.id}/edit">
+                        <i class="fa fa-pencil-square-o" aria-hidden="true"></i>
+                     </a>
+                     <a onclick="return confirm('Are you sure you want to delete this item?');" href="/profile/${profile.id}/destroy" class="btn btn-danger btn-sm">
+                        <i class="fa fa-trash" aria-hidden="true" style="color:#fff"></i>
+                     </a>
+                  </td>
+               </tr>
+            `;
+
             tableBody.append(row);
-        });
-    } else {
-        tableBody.append('<tr><td colspan="6" class="text-center">No Data Found</td></tr>');
-    }
-}
+         });
+      } else {
+         tableBody.append(`
+            <tr>
+               <td colspan="6" class="text-center">No Data Found</td>
+            </tr>
+         `);
+      }
+   }
 </script>
 @endsection

@@ -9,7 +9,8 @@ use App\Models\LabTest;
 use App\Models\LabTestName;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use App\Mail\ProfileCreated; // Add this at the top with your other imports
+use Illuminate\Support\Facades\Mail; 
 class ProfileController extends Controller
 {
     public function index(Request $request)
@@ -182,6 +183,7 @@ class ProfileController extends Controller
     ], [
         'profile_name' => $profileName,
         'amount' => $request->amount,
+        'image' => $request->image,
         'description' => $request->description,
         'lab_id' => $labID,
     ]);
@@ -218,20 +220,52 @@ class ProfileController extends Controller
             ];
         }
     }
-
+    if (!$request->id) { // Check if it's a new profile (id not provided)
+        Mail::to('sharma4271.rs@gmail.com')->send(new ProfileCreated($data));
+    }
+    // if (!$request->id) { // Check if it's a new profile (id not provided)
+    //     Mail::to(Auth::user()->email)->send(new ProfileCreated($data));
+    // }
     // Insert new LabsTestsProfile records
     if (!empty($labsTestsProfileData)) {
         LabsTestsProfile::insert($labsTestsProfileData);
     }
 
     // Handle image upload if provided
-    if ($request->hasFile('image')) {
-        $path = public_path("/uploads/profile/");
-        $uploadImg = $this->uploadDocuments($request->image, $path);
-        $data->image = $uploadImg;
-        $data->save();
+    // if ($request->hasFile('image')) {
+    //     $path = public_path("/uploads/profile/");
+    //     $uploadImg = $this->uploadDocuments($request->image, $path);
+    //     $data->image = $uploadImg;
+    //     $data->save();
+    // }
+    $newTestIds = $request->test_id ?? []; // Initialize as an empty array if not present
+
+    foreach ($newTestIds as $testId) {
+        // Fetch the amount from lab_test_name based on test_id and lab_id
+        $labTest = LabTestName::where('test_id', $testId)
+            ->where('lab_id', $labID)
+            ->first();
+        $testAmount = $labTest ? $labTest->amount : 0;
+
+        // Add or update the LabsTestsProfile record
+        LabsTestsProfile::updateOrCreate(
+            ['labs_tests_id' => $testId, 'lab_profile_id' => $data->id],
+            ['amount' => $testAmount]
+        );
     }
 
+    // Remove tests that are no longer associated
+    $testsToRemove = array_diff($existingTestIds, $newTestIds);
+    if (!empty($testsToRemove)) {
+        LabsTestsProfile::where('lab_profile_id', $data->id)
+            ->whereIn('labs_tests_id', $testsToRemove)
+            ->delete(); // Remove tests that are no longer associated
+    }
+    if ($request->hasFile('image')) {
+        $path = $request->file('image')->store('uploads/profile', 'public'); 
+        $data->image = $path; 
+        $data->save();
+    }
     // Set success message based on whether the record was created or updated
     $msg = isset($request->id) && !empty($request->id) ? 'Updated Successfully.' : 'Created Successfully';
     return redirect()->to($request->url)->with('data_created', $msg);
@@ -376,7 +410,23 @@ class ProfileController extends Controller
         return view('admin.labprofile.create', $categories);
     }
     
+    public function updateSelection(Request $request)
+    {
+        // Find the profile by ID
+        $profile = LabProfile::find($request->profile_id);
     
+        if ($profile) {
+            // Update the 'is_selected' field
+            $profile->is_selected = $request->is_selected;
+            $profile->save();
+    
+            return response()->json(['success' => true, 'message' => 'Profile selection updated successfully']);
+        }
+    
+        return response()->json(['success' => false, 'message' => 'Profile not found']);
+    }
+    
+
     
     public function update(Request $request, $id)
     {
@@ -440,30 +490,40 @@ public function getTestsByProfile(Request $request)
     return response()->json($tests);
 }
 
+
 // public function getLabProfiles($labId)
 // {
-//     $profiles = LabProfile::where('lab_id', $labId)
-//                 ->withCount('labsTestsProfiles as total_tests') // Count total tests
-//                 ->select('id', 'profile_name', 'amount', 'lab_id') // Select necessary fields
-//                 ->get();
-
-//     // Optionally, add lab name manually or with a relationship
-//     $profiles->each(function($profile) {
-//         $profile->lab_name = $profile->lab->name ?? 'Unknown Lab'; // Assuming relation to Lab model
-//     });
+//     // Fetch lab profiles with the count of associated tests and include lab name
+//     $profiles = LabProfile::withCount('labsTestsProfiles')  // Ensure the labsTestsProfiles relationship is defined
+//         ->join('users', 'lab_profile.lab_id', '=', 'users.id')  // Join with the users table (or whichever table stores lab names)
+//         ->select('lab_profile.*', 'users.name as lab_name')  // Select all profile fields and the lab name
+//         ->where('lab_profile.lab_id', $labId)
+//         ->get();
 
 //     return response()->json(['profiles' => $profiles]);
 // }
 
 public function getLabProfiles($labId)
 {
-    // Fetch lab profiles with the count of associated tests
-    $profiles = LabProfile::withCount('labsTestsProfiles') // Make sure this relationship is defined
+    // Fetch lab profiles with the count of associated tests and include lab name
+    $profiles = LabProfile::withCount('labsTestsProfiles')  // Count the associated test profiles
+        ->with(['lab:id,name'])  // Load the related lab name
         ->where('lab_id', $labId)
         ->get();
 
-    return response()->json(['profiles' => $profiles]);
-}
+    // Format profiles to include lab name directly in the profile data
+    $formattedProfiles = $profiles->map(function($profile) {
+        return [
+            'id' => $profile->id,
+            'lab_id' => $profile->lab_id,
+            'profile_name' => $profile->profile_name,
+            'amount' => $profile->amount,
+            'total_tests' => $profile->labs_tests_profiles_count,
+            'lab_name' => $profile->lab->name ?? '--'  // Use lab name from related model
+        ];
+    });
 
+    return response()->json(['profiles' => $formattedProfiles]);
+}
 
 }

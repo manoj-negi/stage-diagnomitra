@@ -16,6 +16,9 @@ use App\Models\hospitalsReport;
 use App\Models\City;
 use App\Models\HospitalDoctor;
 use App\Models\PatientReport;
+use App\Models\LabPincode; 
+use App\Models\Pincode; 
+
 use App\Models\Appointment;
 use App\Models\LabsAvailability;
 use Illuminate\Support\Facades\Hash;
@@ -115,6 +118,7 @@ class HospitalController extends Controller
         $result['page_name'] = "Create";
         $result['updates'] = User::where('id',$request->id)->first();
         $result['state'] = State::get();
+        $result['pincodes'] = Pincode::all();
         $result['city'] = City::all();
         // $result['city'] = LabCities::where('lab_id',Auth::id())->pluck('city')->toArray();
         // $result['allCity'] = City::where('state_id',Auth::user()->state_id)->get();
@@ -130,72 +134,63 @@ class HospitalController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-{
-    $validate = $request->validate([
-        // Define your validation rules here
-    ]);
-
-    $path = 'uploads/hospital/';
-    $documentFile = !empty($request->hospital_logo)? $this->uploadDocuments($request->hospital_logo, $path): $request->old_hospital_logo;
-
-    $result = User::updateOrCreate(
-        ['id' => $request->id],
-        [
-            'name' => $request->name,
-            'email' => $request->email,
-            'number' => $request->number,
-            'city_id' => $request->city_id,
-            'hospital_logo' => $documentFile,
-            'address' => $request->address,
-            'state_id' => $request->state_id,
-            'home_collection' => $request->home_collection,
-            'postal_code' => $request->postal_code,
-            'gst' => $request->gst,
-            'hospital_category' => $request->hospital_category,
-            'hospital_description' => $request->hospital_description,
-            // 'password' => Hash::make($request->password)
-        ]
-    );
-    if(!empty($request->password)){
-        $result->password = Hash::make($request->password);
-        $result->save();
-    }
-    $result->roles()->sync([4]);
-
-    if (!empty($request->city)) {
-        LabCities::where('lab_id',$result->id)->delete();
-        foreach ($request->city as $city) {
-            LabCities::updateOrCreate([
-                'lab_id' => $result->id,
-                'city' => $city,
-            ]);
+    {
+        $validate = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email',
+            'number' => 'required|string|max:15',
+        ]);
+    
+        $path = 'uploads/hospital/';
+        $documentFile = !empty($request->hospital_logo) ? $this->uploadDocuments($request->hospital_logo, $path) : $request->old_hospital_logo;
+    
+        $result = User::updateOrCreate(
+            ['id' => $request->id],
+            [
+                'name' => $request->name,
+                'email' => $request->email,
+                'number' => $request->number,
+                'hospital_logo' => $documentFile,
+                'address' => $request->address,
+                'home_collection' => $request->home_collection,
+                'postal_code' => $request->postal_code,
+                'gst' => $request->gst,
+                'hospital_category' => $request->hospital_category,
+                'hospital_description' => $request->hospital_description,
+            ]
+        );
+    
+        if (!empty($request->password)) {
+            $result->password = Hash::make($request->password);
+            $result->save();
+        }
+        $result->roles()->sync([4]);
+    
+        // Handle multiple pincodes
+        if (is_array($request->pincode)) {
+            foreach ($request->pincode as $pincode_id) {
+                LabPincode::updateOrCreate(
+                    ['lab_id' => $result->id, 'pincode_id' => $pincode_id],
+                    ['pincode_id' => $pincode_id]
+                );
+            }
+        } else {
+            // If it's a single pincode, handle it normally
+            LabPincode::updateOrCreate(
+                ['lab_id' => $result->id],
+                ['pincode_id' => $request->pincode]
+            );
+        }
+    
+        if ($result) {
+            $message = $request->id ? 'Updated' : 'Created';
+            return redirect()->route('lab.index')->with('msg', "Lab is Successfully $message");
+        } else {
+            return redirect()->back()->with('error', 'Something went wrong. Please try again!');
         }
     }
+    
 
-    $data = array();
-    for ($i=1; $i <= 7; $i++) { 
-        $data[] = [
-            'week_day' => $i, 
-            'start_time' => !empty($request->start_time[$i]) ? $request->start_time[$i] : '09:00', 
-            'end_time' => !empty($request->end_time[$i]) ? $request->end_time[$i] : '17:00',
-            'status' => isset($request->weekday[$i]) ? $request->weekday[$i] : 0,
-        ]
-        + (!empty($result->id) ? ['lab_id' => $result->id] : ['lab_id' => $result->id])
-        + (!empty($request->vendor_available_id) ? ['id' => $request->vendor_available_id[$i-1]] : []);
-    }
-
-    LabsAvailability::upsert($data, ['id','lab_id','week_day'],['start_time','end_time','status']);
-            
-    if ($result) {
-        $message = $request->id ? 'Updated' : 'Created';
-        if(Auth::user()->roles->contains(4)){
-           return redirect()->back()->with('msg', "Lab is Successfully Update");
-         }
-        return redirect()->route('lab.index')->with('msg', "Lab is Successfully $message");
-    } else {
-        return redirect()->back()->with('error', 'Something went wrong. Please try again!');
-    }
-}
 
     /**
      * Display the specified resource.
@@ -224,13 +219,13 @@ class HospitalController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
-    {   
-        if(Auth::user()->roles->contains(4)){
-            if(Auth::user()->id != $id){
+    {
+        if (Auth::user()->roles->contains(4)) {
+            if (Auth::user()->id != $id) {
                 return redirect()->to('dashboard');
             }
         }
-
+    
         $data['title'] = "Edit Lab";
         $data["id"] = $id;
         $data['page_name'] = "Edit";
@@ -239,35 +234,21 @@ class HospitalController extends Controller
         $data['updates'] = User::findOrFail($id);
         $data['city'] = City::all();
         
-        $data['week_arr'] = ['1' => 'Monday', '2' => 'Tuesday', '3' => 'Wednesday', '4' => 'Thursday', '5' => 'Friday', '6' => 'Saturday', '7' => 'Sunday']; 
-        if($data['updates'])
-        {
-            return view('admin.hospitals.create',$data);
-        }
-        else
-        {
-            return redirect()->back()->with('error', 'Data not found');   
-        }
-    }
-     public function hospital(Request $request)
-    {
+        // Fetch all pincodes
+        $data['pincodes'] = Pincode::all();  
         
-       $data= City::where('state_id', $request->state_id)->get();
+        // Retrieve selected pincodes for this lab
+        $data['updates']->pincodes = LabPincode::where('lab_id', $id)->pluck('pincode_id')->toArray(); 
     
-        $outputData = '';
-       
-         if(isset($data) && count($data)>1){    
-            foreach($data as $key => $value){
-                if(!empty($value)){
-                    $valueID = $value->id;
-                    $valueTitle = $value->city;
-                    $outputData .= "<option value='$valueID'>".$valueTitle."</option>";
-                }
-            }
-         }
-         return response()->json(['status' => true, 'outputData' => $outputData]);
+        $data['week_arr'] = ['1' => 'Monday', '2' => 'Tuesday', '3' => 'Wednesday', '4' => 'Thursday', '5' => 'Friday', '6' => 'Saturday', '7' => 'Sunday'];
+    
+        if ($data['updates']) {
+            return view('admin.hospitals.create', $data);
+        } else {
+            return redirect()->back()->with('error', 'Data not found');
+        }
     }
-
+    
 
     /**
      * Update the specified resource in storage.
@@ -322,5 +303,23 @@ class HospitalController extends Controller
     
         return redirect()->back()->with('msg', 'Password changed successfully.');
     }
+    public function autocomplete(Request $request)
+{
+    $term = $request->input('term');
+    $pincodes = Pincode::where('code', 'LIKE', '%' . $term . '%')->get();
     
+    return response()->json($pincodes);
+}
+public function searchPincode(Request $request)
+{
+    $query = $request->get('q');
+    $pincodes = Pincode::where('pincode', 'LIKE', "%$query%")->get();
+
+    $result = $pincodes->map(function($pincode) {
+        return ['id' => $pincode->id, 'pincode' => $pincode->pincode];
+    });
+
+    return response()->json(['items' => $result]);
+}
+
 }

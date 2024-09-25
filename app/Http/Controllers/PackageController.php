@@ -200,29 +200,42 @@ class PackageController extends Controller
         return redirect()->back();
     }
 
-    public function amountUpdate(Request $request)
+    // public function amountUpdate(Request $request)
+    // {
+    //     $package = $request->packagesID;
+    //     $amount = $request->amount;
+    //     $checkbox = $request->checkbox;
+
+    //    if($package){
+    //      foreach($package as $key => $item){
+    //         $data = Package::findOrFail($item);
+    //         $data = LabSelectedPackages::updateOrCreate([
+    //                 "package_id" => $item,
+    //                 "lab_id" => Auth::user()->id,
+    //             ], [
+    //                 "amount" => $amount[$key],
+    //                 "is_selected" => $checkbox[$key] ?? 0,
+    //             ]
+    //         );
+    //      }
+    //    }
+    //    $message = 'Data Updated Succssfully';
+    //    return redirect()->back()->with("msg", $message);
+    // }
+    public function updateSelection(Request $request)
     {
-        $package = $request->packagesID;
-        $amount = $request->amount;
-        $checkbox = $request->checkbox;
-
-       if($package){
-         foreach($package as $key => $item){
-            $data = Package::findOrFail($item);
-            $data = LabSelectedPackages::updateOrCreate([
-                    "package_id" => $item,
-                    "lab_id" => Auth::user()->id,
-                ], [
-                    "amount" => $amount[$key],
-                    "is_selected" => $checkbox[$key] ?? 0,
-                ]
-            );
-         }
-       }
-       $message = 'Data Updated Succssfully';
-       return redirect()->back()->with("msg", $message);
+        $package = Package::find($request->id);
+    
+        if ($package) {
+            $package->is_selected = $request->is_selected;
+            $package->save();
+    
+            return response()->json(['success' => true]);
+        }
+    
+        return response()->json(['success' => false]);
     }
-
+    
     public function packageAmountUpdate(Request $request)
     {
         $data = LabSelectedPackages::where('lab_id', Auth::user()->id)->where('package_id', $id)->get();

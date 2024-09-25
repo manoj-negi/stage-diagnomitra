@@ -227,6 +227,26 @@
         </li>
       </ul>
     </li>
+    @if(Auth::user()->roles->contains('1') || Auth::user()->roles->contains('4'))
+<li class="menu-item {{request()->segment('1')=='test-request.create' ||request()->segment('1')=='test-request'?'open active':'' }}">
+  <a href="javascript:void(0)" class="menu-link menu-toggle">
+    <i class="menu-icon tf-icons bx bx-hive"></i>
+    <div data-i18n="User interface">Test Request</div>
+  </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{request()->segment('1')=='test-request'?'active':''}}">
+      <a class="menu-link" href="{{ route('test-request.index') }}">
+        <div data-i18n="Test Request">View Test Requests</div>
+      </a>
+    </li>
+    <li class="menu-item {{request()->segment('1')=='test-request.create'?'active':''}}">
+      <a class="menu-link" href="{{ route('test-request.create') }}">
+        <div data-i18n="Test Request">Create Test Request</div>
+      </a>
+    </li>
+  </ul>
+</li>
+@endif
     <!-- ////////////// -->
     <!-- <li class="menu-item {{request()->segment('1')=='package'?'active':''}}">
       <a class="menu-link" href="{{ route('package.index') }}">
@@ -242,12 +262,16 @@
         <div data-i18n="Test">Bookings</div>
       </a>
     </li>
+    @if(Auth::user()->roles->contains(1)) <!-- Admin Role -->
+
     <li class="menu-item {{ request()->is('admin/blogposts*') ? 'active' : '' }}">
     <a class="menu-link" href="{{ route('admin.blogposts.index') }}">
         <i class="menu-icon tf-icons bx bx-calendar"></i>
         <div data-i18n="Test">Blogs</div>
     </a>
 </li>
+@endif
+@if(Auth::user()->roles->contains(1)) 
 
     <li
       class="menu-item {{request()->segment(1)=='ratingreviews'?'active':''}}"
@@ -257,40 +281,15 @@
         <div data-i18n="Test">Reviews</div>
       </a>
     </li>
+    @endif
     @can('dashboard_support_list')
     <li class="menu-item {{ request()->segment('1')=='city'?'active': '' }}">
-      <a href="{{ route('city.index') }}" class="menu-link">
+      <a href="{{ route('pincodes.index') }}" class="menu-link">
         <i class="menu-icon tf-icons bx bx-buildings"></i>
-        <div data-i18n="Dashboard">Cities</div>
+        <div data-i18n="Dashboard">Pincode</div>
       </a>
     </li>
-    @endcan @can('dashboard_labs_test_list')
-    <li
-      class="menu-item {{request()->segment('1')=='test-request.create' ||request()->segment('1')=='test-request'?'open active':'' }}"
-    >
-      <a href="javascript:void(0)" class="menu-link menu-toggle">
-        <i class="menu-icon tf-icons bx bx-hive"></i>
-        <div data-i18n="User interface">Test Request</div>
-      </a>
-      <ul class="menu-sub">
-        <li
-          class="menu-item {{request()->segment('1')=='test-request'?'active':''}}"
-        >
-          <a class="menu-link" href="{{ route('test-request.index') }}">
-            <div data-i18n="Test-request">Test Request List</div>
-          </a>
-        </li>
-        <li
-          class="menu-item {{request()->segment('1')=='test-request.create'?'active':''}}"
-        >
-          <a class="menu-link" href="{{ route('test-request.create') }}">
-            <div data-i18n="Test-request">Test Request</div>
-          </a>
-        </li>
-      </ul>
-      @endcan
-    </li>
-    @can('dashboard_support_list')
+ 
 
     <li
       class="menu-item {{request()->segment('1')=='static-pages'?'active':''}}"
@@ -328,14 +327,26 @@
       </a>
     </li>
 
-    <li class="menu-item {{request()->segment('1')=='promo'?'active':''}}">
+    <!-- <li class="menu-item {{request()->segment('1')=='promo'?'active':''}}">
       <a class="menu-link" href="{{ route('promo.index') }}">
         <i class="menu-icon tf-icons bx bxs-discount"></i>
         <div data-i18n="Test">Promo Code</div>
       </a>
-    </li>
+    </li> -->
 
     @endcan
+ 
+    
+    @can('dashboard_support_list')
+    <!-- <li
+      class="menu-item {{request()->segment('1')=='test-request'?'active':''}}"
+    >
+      <a class="menu-link" href="{{ route('test-request.index') }}">
+        <i class="menu-icon tf-icons bx bx-hive"></i>
+        <div data-i18n="Test-request">Test Request</div>
+      </a>
+    </li> -->
+    @endcan @can('dashboard_support_list')
     <li
       class="menu-item {{request()->segment('1')=='testimonials'?'active':''}}"
     >
@@ -352,16 +363,6 @@
         <div data-i18n="Test">Doctor Recommended</div>
       </a>
     </li>
-    @can('dashboard_support_list')
-    <li
-      class="menu-item {{request()->segment('1')=='test-request'?'active':''}}"
-    >
-      <a class="menu-link" href="{{ route('test-request.index') }}">
-        <i class="menu-icon tf-icons bx bx-hive"></i>
-        <div data-i18n="Test-request">Test Request</div>
-      </a>
-    </li>
-    @endcan @can('dashboard_support_list')
     <li
       class="menu-item {{request()->segment(1)=='mail'||request()->segment('1')=='site-settings'||request()->segment(1)=='sliders'?'open active':''}}"
     >
