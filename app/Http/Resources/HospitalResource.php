@@ -17,8 +17,8 @@ class HospitalResource extends JsonResource
      */
     public function toArray($request)
     {
-        $reviewCount = $this->ratingsReviews()->count();
-        $ratingCount = User::AVGRating($this->id);
+        // $reviewCount = $this->ratingsReviews()->count();
+        // $ratingCount = User::AVGRating($this->id);
         $patientCount = Appointment::where('hospital_id',$this->id)->groupBy('patient_id')->count();
         return [
             "id"                => $this->id,
@@ -30,7 +30,7 @@ class HospitalResource extends JsonResource
             // 'state'           => $this->state ?? '',
             'hospital_description'  => $this->hospital_description,
             'hospital_logo'     => $this->hospital_logo ? asset('uploads/hospital/' . $this->hospital_logo) : '',
-            'review_count' => $reviewCount,
+            // 'review_count' => $reviewCount,
             'patientCount' => $patientCount,
             'avg_rating_count' => number_format($ratingCount ?? 0,2)
         ];

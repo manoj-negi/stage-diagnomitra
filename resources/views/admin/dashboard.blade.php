@@ -7,7 +7,7 @@
             <div class="d-flex align-items-end row">
                <div class="col">
                   <h3 class="card-title text-primary" style=" margin: 20px; text-transform: capitalize;">Welcome Back @if(Auth::user()->name  == 'Admin') 
-                  DignoMitra
+                  DiagnoMitra
                   @else
                   {{ Auth::user()->name }}
                   @endif

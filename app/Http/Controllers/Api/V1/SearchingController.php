@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Http\Controllers\Api\V1;
+use App\Models\LabProfile;
+use App\Models\LabTestName;
 
 use App\Models\Package;
 use App\Models\User;
@@ -465,55 +467,46 @@ class SearchingController extends Controller
        return ResponseBuilder::success($labdata, 'result fetch successfully');
     }
     public function searchLab(Request $request)
-	{
+    {
         try {
             $keyword = $request->keyword;
-        
-             $lab = Role::where('role', 'Lab')->first()->users();
-
-             /** data according cities */
-             if(!empty($request->city_id)){
-                 $getLabByCities = Helper::getLabByCities($request->city_id ?? null);
-                 $lab->whereIn('id',$getLabByCities);
-             }
-            $lab  = $lab->pluck('id')->toArray();
+    
+            // Get labs with role 'Lab'
+            $lab = Role::where('role', 'Lab')->first()->users();
+    
+            /** Data according to pincode */
+            if (!empty($request->pincode_id)) {
+                // Assuming you have a helper function to get labs by pincode
+                $getLabByPincode = Helper::getLabByPincode($request->pincode_id ?? null);
+                $lab->whereIn('id', $getLabByPincode);
+            }
+            
+            // Get lab IDs
+            $lab = $lab->pluck('id')->toArray();
+    
+            // Search keyword, modify based on your logic
             $keyword = Helper::searchShortKeys($keyword);
-            $Package = Package::whereIn('lab_id',$lab)->where('package_name', 'LIKE', "%$keyword%")->where('type','test')->get();
-            $this->response = new TestCollection($Package);
-            return ResponseBuilder::success($this->response, 'Tests fetch successfully');
-            // $lab = $lab->pluck('id')->toArray();
-            // $lab = array_values(array_unique($lab));
-            // $mergedArray =  Package::where('package_name', 'LIKE', "%$keyword%")->where('type','test')->pluck('id')->toArray();
-            // $LabSelectedPackages = LabSelectedPackages::whereIn('package_id',$mergedArray)->where('is_selected',true)->pluck('lab_id')->toArray();
             
-            // if(!empty($LabSelectedPackages) && !empty($lab)){
-            //     $lab = array_merge($lab,$LabSelectedPackages);
-            // }elseif(!empty($LabSelectedPackages)){
-            //     $lab = $LabSelectedPackages;
-            // }
+            // Fetch tests from labs_tests table based on labs and search keyword (test_name)
+            $tests = LabTestName::whereIn('lab_id', $lab)
+            ->join('users', 'lab_test_name.lab_id', '=', 'users.id')  // Join the users table
+            ->where('test_id', 'LIKE', "%$keyword%")                  // Filter by test_id
+            ->select('lab_test_name.*', 'users.name as lab_name')      // Select the lab_name from users
+            ->get();
+        
+    // dd($tests);
+            // Return success response with fetched tests
+            // $this->response = new TestCollection($tests);
+            $this->response = ($tests);
 
-            // $lab = User::whereIn('id',$lab)->get();
-            // $labData = new HospitalCollection($lab);
-            // foreach($labData as $item){
-            //     $tests = Package::where('package_name', 'LIKE', "%$keyword%")->where('type','test')->where('lab_id',$item->id)->first();
-            //     $return[]['lab_data'] = $item;
-            //     $return[]['test'] = !empty($tests) ? new TestResource($tests):'';
-            // }
+            return ResponseBuilder::success($this->response, 'Tests fetched successfully');
             
-            // $this->response = $return ?? [];
-            // return ResponseBuilder::success($this->response, 'Lab data fetch successfully');   
-            
-
-            /**V Care plus logic */
-            $Package = Package::where('package_name', 'LIKE', "%$keyword%")->where('type','test')->get();
-            $this->response = new TestCollection($Package);
-            return ResponseBuilder::success($this->response, 'Lab data fetch successfully');
-            
-        }
-        catch (exception $e) {
+        } catch (Exception $e) {
+            // Handle exception
             return ResponseBuilder::error(__($e->getMessage()), $this->serverError);
         }
     }
+    
     public function labsPackage(Request $request)
 	{
         try {
@@ -598,15 +591,43 @@ class SearchingController extends Controller
             return ResponseBuilder::error(__($e->getMessage()), $this->serverError);
         }
     }
+    // public function diagnoProfileList(Request $request)
+	// {
+    //     try {
+    //         $profiles = Package::orderBy('id','desc')->where('type','profile')->where('lab_id',1);
+    //         $profiles = $profiles->get();
+    //         $this->response = new ProfilePreviewCollection($profiles);
+    //         return ResponseBuilder::success($this->response, 'Profile list');   
+    //     }
+    //     catch (exception $e) {
+    //         return ResponseBuilder::error(__($e->getMessage()), $this->serverError);
+    //     }
+    // }
+
     public function diagnoProfileList(Request $request)
-	{
+    {
         try {
-            $profiles = Package::orderBy('id','desc')->where('type','profile')->where('lab_id',1);
-            $profiles = $profiles->get();
-            $this->response = new ProfilePreviewCollection($profiles);
-            return ResponseBuilder::success($this->response, 'Profile list');   
+          
+            // Start building the query for profiles
+            $profilesQuery = LabProfile::query()
+                ->join('users', 'lab_profile.lab_id', '=', 'users.id')
+                ->select('lab_profile.*', 'users.name as lab_name');
+    
+            
+            // Fetch the profiles in descending order of ID
+            $profiles = $profilesQuery->orderBy('lab_profile.id', 'desc')->get();
+    // dd($profiles);
+            // Wrap profiles in the response collection
+            $this->response = ($profiles);
+    
+            // Return a successful response with the profiles
+            return ResponseBuilder::success($this->response, 'Profile list');
         }
-        catch (exception $e) {
+        catch (Exception $e) {
+            // Log the exception for debugging (optional)
+            Log::error('Error fetching profile list: ' . $e->getMessage());
+    
+            // Return an error response
             return ResponseBuilder::error(__($e->getMessage()), $this->serverError);
         }
     }

@@ -155,11 +155,11 @@ class User extends Authenticatable
         $rating = RatingReview::selectRaw('AVG(ratings) as doctorRating')->where('doctor_id', $id)->first();
         return $rating->doctorRating;
     }
-    public static function AVGRating($id)
-    {
-        $rating = RatingReview::selectRaw('AVG(ratings) as labRating')->where('hospital_id', $id)->first();
-        return $rating->labRating;
-    }
+    // public static function AVGRating($id)
+    // {
+    //     $rating = RatingReview::selectRaw('AVG(ratings) as labRating')->where('hospital_id', $id)->first();
+    //     return $rating->labRating;
+    // }
     public static function DoctorRatings($id)
     {
 

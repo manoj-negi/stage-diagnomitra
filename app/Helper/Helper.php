@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Helper;
+use Illuminate\Support\Facades\DB;  // Use DB facade to execute queries
 
 use App\Models\LabCities;
 use App\Models\User;
@@ -51,5 +52,12 @@ class Helper
        return $data[$keyWord] ?? $keyWord;
 
     }
-
+    public static function getLabByPincode($pincodeId)
+    {
+        // Query labs by pincode_id from the lab_pincode table
+        return DB::table('lab_pincode')
+            ->where('pincode_id', $pincodeId)
+            ->pluck('lab_id')  // Get the lab_id column
+            ->toArray();       // Return the result as an array
+    }
 }

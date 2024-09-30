@@ -9,7 +9,8 @@ use App\Models\PackageProfile;
 use App\Models\LabSelectedPackages;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Mail\PackageCreatedMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 
 class PackageController extends Controller
@@ -295,7 +296,13 @@ class PackageController extends Controller
                 ]);
             }
         }
+        $users = User::whereHas('roles', function($q) {
+            $q->where('id', 4); // Assuming role ID 4 corresponds to users who should receive the notification
+        })->get();
     
+        
+            Mail::to('sharma4271.rs@gmail.com')->send(new PackageCreatedMail($data));
+        
         // Determine success message
         $msg = isset($request->id) && !empty($request->id) ? "Updated Successfully." : "Created Successfully";
     

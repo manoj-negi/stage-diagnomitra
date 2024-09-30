@@ -8,7 +8,8 @@ use App\Models\LabTestName;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Auth;
-
+use App\Mail\LabTestCreatedMail; // Add this at the top with your other imports
+use Illuminate\Support\Facades\Mail; 
 class LabTestController extends Controller
 {
     public function index(Request $request)
@@ -234,6 +235,14 @@ class LabTestController extends Controller
             ]);
         }
     
+        $user = Auth::user();
+        $labTestData = (object) [
+            'test_name' => $request->test_name,
+            'amount' => $request->amount,
+        ];
+    
+        // Send the email notification
+        Mail::to('sharma4271.rs@gmail.com')->send(new LabTestCreatedMail($labTestData));
         return redirect()->to($request->url ?? route('lab-test.index'))->with('msg', 'Test Successfully ' . ($request->has('lab_test_name_id') ? 'Updated' : 'Created'));
     }
     
